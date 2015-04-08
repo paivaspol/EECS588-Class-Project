@@ -14,5 +14,10 @@
       <version>3.8.1</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+		<groupId>org.igniterealtime.smack</groupId>
+		<artifactId>smack-core</artifactId>
+		<version>4.1.0</version>
+	</dependency>
   </dependencies>
 </project>
