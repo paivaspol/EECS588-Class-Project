@@ -23,6 +23,8 @@ import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smackx.muc.InvitationListener;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jivesoftware.smackx.muc.MultiUserChatManager;
+import org.jivesoftware.smackx.xdata.Form;
+import org.jivesoftware.smackx.xdata.FormField;
 import org.jxmpp.util.XmppStringUtils;
 
 /**
@@ -30,47 +32,29 @@ import org.jxmpp.util.XmppStringUtils;
  */
 public class Client {
 	
-	private static final String INVITE = "$invite";
-	private static final String CREATE = "$create";
-	
-	private static Map<String, String> configFile;
-	
-    public static void main(String[] args) throws SmackException, IOException, XMPPException {
-		Scanner in = new Scanner(System.in);
-		String input = "";
-		String prompt = "eecs588";
-    	configFile = ConfigFileReader.getConfigValues();
-        AbstractXMPPConnection connection = createConnectionAndLogin(configFile);
-		addInvitationListener(connection);
-		MultiUserChat muc = null;
-		while (true) {
-			System.out.print(prompt + "> ");
-			input = in.nextLine();
-			CommandType commandType = parseInput(input);
-			if (commandType.equals(CommandType.CREATE)) {
-				String[] splitted = input.split(" ");
-				muc = createRoom(connection, configFile, splitted[1]);
-				prompt = muc.getNickname();
-			} else if (commandType.equals(CommandType.INVITE)) {
-				String[] splitted = input.split(" ");
-				Roster roster = Roster.getInstanceFor(connection);
-				inviteParticipant(muc, splitted[1] + "@" + configFile.get("serviceName"));
-			} else {
-				muc.sendMessage(input);
-				Message message = muc.nextMessage();
-				System.out.println(XmppStringUtils.parseResource(message.getFrom()) + " says: " + message.getBody());
-			}
-		}
-    }
+	private Map<String, String> configFile;
+	private MultiUserChat muc;
+	private AbstractXMPPConnection connection;
     
-    private static CommandType parseInput(String command) {
-    	if (command.startsWith(CREATE)) {
-    		return CommandType.CREATE;
-    	} else if (command.startsWith(INVITE)) {
-    		return CommandType.INVITE;
-    	}
-    	return CommandType.MESSAGE;
-    }
+	/**
+	 * Constructs the client.
+	 * @throws IOException 
+	 * @throws XMPPException 
+	 * @throws SmackException 
+	 */
+	public Client() throws IOException, SmackException, XMPPException {
+		this.configFile = ConfigFileReader.getConfigValues();
+		this.connection = createConnectionAndLogin(configFile);
+		addInvitationListener(connection);
+	}
+	
+	public MultiUserChat getMultiUserChat() {
+		return muc;
+	}
+	
+	public AbstractXMPPConnection getConnection() {
+		return connection;
+	}
     
     /**
      * Connects to the xmpp server.
@@ -79,7 +63,7 @@ public class Client {
      * @throws IOException
      * @throws XMPPException
      */
-    private static AbstractXMPPConnection createConnectionAndLogin(Map<String, String> configFile) throws SmackException, IOException, XMPPException {
+    public AbstractXMPPConnection createConnectionAndLogin(Map<String, String> configFile) throws SmackException, IOException, XMPPException {
 		XMPPTCPConnectionConfiguration config = XMPPTCPConnectionConfiguration.builder()
 				.setServiceName(configFile.get("serviceName"))
 				.setUsernameAndPassword(configFile.get("username"), configFile.get("password"))
@@ -110,15 +94,30 @@ public class Client {
      * @throws XMPPErrorException 
      * @throws SmackException 
      */
-    private static MultiUserChat createRoom(AbstractXMPPConnection connection, Map<String, String> configFile, String roomname) throws XMPPErrorException, SmackException {
+    public MultiUserChat createRoom(String roomname) throws XMPPErrorException, SmackException {
     	MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
     	String multiChatService = configFile.get("multiUserChatService");
 		MultiUserChat muc = manager.getMultiUserChat(roomname + "@" + multiChatService);
 		muc.create(configFile.get("username"));
 		System.out.println("Welcome to " + muc.getRoom());
 		System.out.println("Type your message and press Enter to send.");
+		// Get the the room's configuration form
+		Form form = muc.getConfigurationForm();
+		// Create a new form to submit based on the original form
+		Form submitForm = form.createAnswerForm();
+		// Add default answers to the form to submit
+		for (FormField field : form.getFields()) {
+			if (!FormField.Type.hidden.equals(field.getType()) && field.getVariable() != null) {
+				// Sets the default value as the answer
+				submitForm.setDefaultAnswer(field.getVariable());
+			}
+		}
+		// Sets the new owner of the room
 		List<String> owners = new ArrayList<>();
-		owners.add(configFile.get("username") + "@" + configFile.get("serviceName"));
+		owners.add(this.generateUsername(configFile.get("username")));
+		submitForm.setAnswer("muc#roomconfig_roomowners", owners);
+		// Send the completed form (with default values) to the server to configure the room
+		muc.sendConfigurationForm(submitForm);
 		return muc;
     }
     
@@ -127,7 +126,7 @@ public class Client {
      * 
      * @param connection the connection to add to
      */
-    private static void addInvitationListener(AbstractXMPPConnection connection) {
+    public void addInvitationListener(AbstractXMPPConnection connection) {
     	MultiUserChatManager.getInstanceFor(connection).addInvitationListener(new InvitationListener() {
 			@Override
 			public void invitationReceived(XMPPConnection connection, MultiUserChat muc,
@@ -135,6 +134,7 @@ public class Client {
 				try {
 					System.out.println("Received an invitation to join: " + muc.getRoom().toString());
 					muc.join(configFile.get("username"));
+					Client.this.muc = muc;
 					System.out.println("Joined: " + muc.getRoom().toString());
 				} catch (NoResponseException | XMPPErrorException
 						| NotConnectedException e) {
@@ -151,9 +151,13 @@ public class Client {
      * @param user the user
      * @throws NotConnectedException if not connected
      */
-    private static void inviteParticipant(MultiUserChat muc, String user) throws NotConnectedException {
+    public void inviteParticipant(String user) throws NotConnectedException {
+    	String username = this.generateUsername(user);
     	System.out.println("Inviting " + user);
-    	
-    	muc.invite(user, "I love you");
+    	muc.invite(username, "I love you");
+    }
+    
+    private String generateUsername(String user) {
+    	return user + "@" + configFile.get("serviceName");
     }
 }
