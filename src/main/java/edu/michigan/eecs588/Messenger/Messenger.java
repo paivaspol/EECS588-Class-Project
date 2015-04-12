@@ -1,8 +1,10 @@
 package edu.michigan.eecs588.Messenger;
 
 import edu.michigan.eecs588.encryption.AESCrypto;
+import edu.michigan.eecs588.encryption.Signer;
 import edu.michigan.eecs588.encryption.Verifier;
 import org.jivesoftware.smack.MessageListener;
+import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 
@@ -29,17 +31,20 @@ public class Messenger {
     MultiUserChat muc;
     MessageReceived cb;
     Map<String, Verifier> publicKeys;
-    int currentGlobalCount;
-    int currentLocalCount;
+    Signer userSigner;
+    int currentGlobalCount = 0;
+    int currentLocalCount = 0;
     Map<String, SentMsgInfo> localSentMessages;
 
-    public Messenger(MultiUserChat muc, MessageReceived callback, final Map<String, Verifier> publicKeys) {
+    public Messenger(MultiUserChat muc, MessageReceived callback, Map<String, Verifier> publicKeys,
+                     Signer userSigner) {
         this.muc = muc;
         this.cb = callback;
         this.publicKeys = publicKeys;
+        this.userSigner = userSigner;
 
 
-        muc.addMessageListener(new MessageListener() {
+        this.muc.addMessageListener(new MessageListener() {
             @Override
             public void processMessage(Message message) {
                 String encryptedMessage = message.getBody();
@@ -48,38 +53,59 @@ public class Messenger {
                     SentMsgInfo msgInfo = localSentMessages.get(encryptedMessage);
                     // if the message have the wrong encryption key, resend it
                     if (msgInfo.localCount/MESSAGE_ROLL_COUNT != currentGlobalCount/MESSAGE_ROLL_COUNT) {
-                        sendMessage(msgInfo.message);
-                        localSentMessages.remove(encryptedMessage);
+                        try {
+                            sendMessage(msgInfo.message);
+                            localSentMessages.remove(encryptedMessage);
+                        } catch (SmackException.NotConnectedException e) {
+                            e.printStackTrace();
+                        }
                         return;
                     }
                     localSentMessages.remove(encryptedMessage);
                 }
 
                 String dcryptMsgStr = decrypto.decrypt(encryptedMessage);
-                Verifier senderVerf = publicKeys.get(message.getFrom());
-                if (dcryptMsgStr != null && senderVerf != null && senderVerf.verify(dcryptMsgStr)) {
-                    message.setBody(getMessage(dcryptMsgStr));
+                String sign = getSignature(dcryptMsgStr);
+                String messageNoSign = getMessage(dcryptMsgStr);
+                Verifier senderVerf = Messenger.this.publicKeys.get(message.getFrom());
+                if (dcryptMsgStr != null && senderVerf != null && senderVerf.verify(sign, messageNoSign)) {
+                    message.setBody(getMessage(messageNoSign));
                     // count for next message
-                    currentGlobalCount++;
-                    // roll key for next message
-                    if (currentGlobalCount % MESSAGE_ROLL_COUNT == 0) {
-                        decrypto.rollKey();
-                    }
-                    if (currentLocalCount < currentGlobalCount) {
-                        currentLocalCount = currentGlobalCount;
-                        if (currentLocalCount % MESSAGE_ROLL_COUNT == 0) {
-                            encrypto.rollKey();
-                        }
-                    }
                     cb.onMessageReceived(message);
+                    rollGlobalKey();
                 }
 
             }
         });
     }
 
-    public void sendMessage(String message) {
+    public void sendMessage(String message) throws SmackException.NotConnectedException{
+        String sign = userSigner.sign(message);
+        String signedMessage = message + sign;
+        String encrypted = encrypto.encrypt(signedMessage);
+        muc.sendMessage(encrypted);
+        rollLocalKey();
+    }
 
+    private void rollLocalKey() {
+        currentLocalCount++;
+        if (currentLocalCount % MESSAGE_ROLL_COUNT == 0) {
+            encrypto.rollKey();
+        }
+    }
+
+    private void rollGlobalKey() {
+        currentGlobalCount++;
+        // roll key for next message
+        if (currentGlobalCount % MESSAGE_ROLL_COUNT == 0) {
+            decrypto.rollKey();
+        }
+        if (currentLocalCount < currentGlobalCount) {
+            currentLocalCount = currentGlobalCount;
+            if (currentLocalCount % MESSAGE_ROLL_COUNT == 0) {
+                encrypto.rollKey();
+            }
+        }
     }
 
     private String getSignature(String message) {
@@ -89,10 +115,5 @@ public class Messenger {
     private String getMessage(String message) {
         return message.substring(0, message.length() - 32);
     }
-
-    private String sign(String message) {
-
-    }
-
 
 }
