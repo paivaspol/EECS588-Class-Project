@@ -1,5 +1,8 @@
 package edu.michigan.eecs588.encryption;
 
+import org.jivesoftware.smack.util.stringencoder.java7.Base64;
+
+import java.io.UnsupportedEncodingException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
@@ -31,7 +34,7 @@ public class Verifier
         try
         {
             PublicKey publicKey =
-                    KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyString.getBytes()));
+                    KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.decode(publicKeyString)));
             signature = Signature.getInstance("SHA256withRSA");
             signature.initVerify(publicKey);
         }
@@ -49,13 +52,18 @@ public class Verifier
         }
     }
 
-    public boolean verify(String cipherText)
+    public boolean verify(String message, String cipherText)
     {
         try
         {
-            return signature.verify(cipherText.getBytes());
+            signature.update(message.getBytes("UTF-8"));
+            return signature.verify(Base64.decode(cipherText));
         }
         catch (SignatureException e)
+        {
+            e.printStackTrace();
+        }
+        catch (UnsupportedEncodingException e)
         {
             e.printStackTrace();
         }

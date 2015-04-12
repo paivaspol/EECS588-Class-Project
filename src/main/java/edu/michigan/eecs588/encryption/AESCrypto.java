@@ -114,7 +114,7 @@ public class AESCrypto
         }
         catch (BadPaddingException e)
         {
-            e.printStackTrace();
+            // Decryption fails. Return null
         }
         catch (UnsupportedEncodingException e)
         {
