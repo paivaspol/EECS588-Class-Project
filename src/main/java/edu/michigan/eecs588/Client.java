@@ -65,8 +65,8 @@ public class Client {
     private static MultiUserChat createRoom(AbstractXMPPConnection connection, Map<String, String> configFile) throws XMPPErrorException, SmackException {
     	MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
     	String multiChatService = configFile.get("multiUserChatService");
-		MultiUserChat muc = manager.getMultiUserChat("myroom@" + multiChatService);
-		muc.create(configFile.get("roomname"));
+		MultiUserChat muc = manager.getMultiUserChat(configFile.get("roomname") + "@" + multiChatService);
+		muc.create(configFile.get("username"));
 		// Get the the room's configuration form
 		Form form = muc.getConfigurationForm();
 		// Create a new form to submit based on the original form
