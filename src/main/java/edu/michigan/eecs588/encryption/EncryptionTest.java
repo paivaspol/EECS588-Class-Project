@@ -4,6 +4,8 @@ public class EncryptionTest
 {
     public static void main(String[] args)
     {
+        MQV mqv = new MQV(new RSAKeyPair());
+
         AESCrypto crypto = new AESCrypto();
         String message = "Hello, world!";
 
@@ -23,5 +25,19 @@ public class EncryptionTest
         System.out.println("Cipher text: \n" + cipherText);
         System.out.println("Original text: \n" + crypto.decrypt(cipherText));
         System.out.println("Secret: \n" + crypto.getSecret());
+
+        RSAKeyPair keyPair = new RSAKeyPair();
+        Signer signer1 = new Signer(keyPair.getPrivateKey());
+        Verifier verifier1 = new Verifier(keyPair.getPublicKey());
+
+        keyPair = new RSAKeyPair();
+        Signer signer2 = new Signer(keyPair.getPrivateKey());
+        Verifier verifier2 = new Verifier(keyPair.getPublicKey());
+
+        System.out.println(verifier1.verify(message, signer1.sign(message)));
+        System.out.println(verifier1.verify(message, signer2.sign(message)));
+        System.out.println(verifier2.verify(message, signer1.sign(message)));
+        System.out.println(verifier2.verify(message, signer2.sign(message)));
+
     }
 }
