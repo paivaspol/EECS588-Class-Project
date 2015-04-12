@@ -19,6 +19,7 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Presence.Type;
+import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smackx.muc.InvitationListener;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jivesoftware.smackx.muc.MultiUserChatManager;
@@ -50,7 +51,8 @@ public class Client {
 				prompt = muc.getNickname();
 			} else if (commandType.equals(CommandType.INVITE)) {
 				String[] splitted = input.split(" ");
-				inviteParticipant(muc, splitted[1]);
+				Roster roster = Roster.getInstanceFor(connection);
+				inviteParticipant(muc, splitted[1] + "@" + configFile.get("serviceName"));
 			} else {
 				muc.sendMessage(input);
 				Message message = muc.nextMessage();
@@ -111,13 +113,10 @@ public class Client {
     	String multiChatService = configFile.get("multiUserChatService");
 		MultiUserChat muc = manager.getMultiUserChat(roomname + "@" + multiChatService);
 		muc.create(configFile.get("username"));
-
 		System.out.println("Welcome to " + muc.getRoom());
 		System.out.println("Type your message and press Enter to send.");
-
 		List<String> owners = new ArrayList<>();
 		owners.add(configFile.get("username") + "@" + configFile.get("serviceName"));
-
 		return muc;
     }
     
@@ -152,6 +151,7 @@ public class Client {
      */
     private static void inviteParticipant(MultiUserChat muc, String user) throws NotConnectedException {
     	System.out.println("Inviting " + user);
+    	
     	muc.invite(user, "I love you");
     }
 }
