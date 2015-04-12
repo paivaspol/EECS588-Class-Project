@@ -8,11 +8,15 @@ import java.util.Map;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
 import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.packet.Presence.Type;
+import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.muc.InvitationListener;
@@ -30,6 +34,8 @@ public class Client {
     	Map<String, String> configFile = ConfigFileReader.getConfigValues();
         AbstractXMPPConnection connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
+		Roster roster = Roster.getInstanceFor(connection);
+		System.out.println("is b online: " + roster.getPresence(configFile.get("username") + "@" + configFile.get("serviceName")));
         while (true) {}
     }
     
@@ -51,8 +57,16 @@ public class Client {
 		AbstractXMPPConnection connection = new XMPPTCPConnection(config);
 		connection.connect();
 		connection.login(configFile.get("username"), configFile.get("password"));
+		setStatus(connection, true,"ONLINE");
 		System.out.println("Connected to XMPP server!");
     	return connection;
+    }
+    
+    public static void setStatus(AbstractXMPPConnection connection, boolean available, String status) throws XMPPException, NotConnectedException {
+        Presence.Type type = available ? Type.available : Type.unavailable;
+        Presence presence = new Presence(type);
+        presence.setStatus(status);
+        connection.sendStanza(presence);
     }
     
     /**
@@ -98,7 +112,14 @@ public class Client {
 			@Override
 			public void invitationReceived(XMPPConnection connection, MultiUserChat muc,
 					String room, String inviter, String reason, Message password) {
-				System.out.println("Invitation Received...");
+				try {
+					System.out.println("Received an invitation to join: " + room);
+					muc.join(room);
+					System.out.println("Joined: " + room);
+				} catch (NoResponseException | XMPPErrorException
+						| NotConnectedException e) {
+					throw new RuntimeException(e);
+				}
 			}
 		});
     }
