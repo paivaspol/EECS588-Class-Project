@@ -129,11 +129,11 @@ public class Client {
     	MultiUserChatManager.getInstanceFor(connection).addInvitationListener(new InvitationListener() {
 			@Override
 			public void invitationReceived(XMPPConnection connection, MultiUserChat muc,
-					String room, String inviter, String reason, Message password) {
+					String inviter, String reason, String password, Message message) {
 				try {
-					System.out.println("Received an invitation to join: " + room);
-					muc.join(room);
-					System.out.println("Joined: " + room);
+					System.out.println("Received an invitation to join: " + muc.getRoom().toString());
+					muc.join(muc.getRoom());
+					System.out.println("Joined: " + muc.getRoom().toString());
 				} catch (NoResponseException | XMPPErrorException
 						| NotConnectedException e) {
 					throw new RuntimeException(e);
