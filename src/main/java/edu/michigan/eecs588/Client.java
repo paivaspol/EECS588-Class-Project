@@ -19,13 +19,11 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Presence.Type;
-import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smackx.muc.InvitationListener;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jivesoftware.smackx.muc.MultiUserChatManager;
 import org.jivesoftware.smackx.xdata.Form;
 import org.jivesoftware.smackx.xdata.FormField;
-import org.jxmpp.util.XmppStringUtils;
 
 /**
  * Entry point for the client for the XMPP.
@@ -94,7 +92,7 @@ public class Client {
      * @throws XMPPErrorException 
      * @throws SmackException 
      */
-    public MultiUserChat createRoom(String roomname) throws XMPPErrorException, SmackException {
+    public void createRoom(String roomname) throws XMPPErrorException, SmackException {
     	MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
     	String multiChatService = configFile.get("multiUserChatService");
 		MultiUserChat muc = manager.getMultiUserChat(roomname + "@" + multiChatService);
@@ -118,7 +116,7 @@ public class Client {
 		submitForm.setAnswer("muc#roomconfig_roomowners", owners);
 		// Send the completed form (with default values) to the server to configure the room
 		muc.sendConfigurationForm(submitForm);
-		return muc;
+		this.muc = muc;
     }
     
     /**

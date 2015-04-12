@@ -19,19 +19,20 @@ public class Main {
 		Scanner in = new Scanner(System.in);
 		String input = "";
 		String prompt = "eecs588";
-		MultiUserChat muc = client.getMultiUserChat();
 		while (true) {
 			System.out.print(prompt + "> ");
 			input = in.nextLine();
 			CommandType commandType = parseInput(input);
 			if (commandType.equals(CommandType.CREATE)) {
 				String[] splitted = input.split(" ");
-				muc = client.createRoom(splitted[1]);
+				client.createRoom(splitted[1]);
+				MultiUserChat muc = client.getMultiUserChat();
 				prompt = muc.getRoom().toString();
 			} else if (commandType.equals(CommandType.INVITE)) {
 				String[] splitted = input.split(" ");
 				client.inviteParticipant(splitted[1]);
 			} else {
+				MultiUserChat muc = client.getMultiUserChat();
 				muc.sendMessage(input);
 				Message message = muc.nextMessage();
 				System.out.println(XmppStringUtils.parseResource(message.getFrom()) + " says: " + message.getBody());
