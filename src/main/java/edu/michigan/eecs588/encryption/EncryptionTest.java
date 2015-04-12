@@ -4,8 +4,6 @@ public class EncryptionTest
 {
     public static void main(String[] args)
     {
-        MQV mqv = new MQV(new RSAKeyPair());
-
         AESCrypto crypto = new AESCrypto();
         String message = "Hello, world!";
 
@@ -39,5 +37,7 @@ public class EncryptionTest
         System.out.println(verifier2.verify(message, signer1.sign(message)));
         System.out.println(verifier2.verify(message, signer2.sign(message)));
 
+        ECMQVKeyPair ecmqvKeyPair = new ECMQVKeyPair();
+        System.out.println(ecmqvKeyPair.getPublicKeyAsString());
     }
 }
