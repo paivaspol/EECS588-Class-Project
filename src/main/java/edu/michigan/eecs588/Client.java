@@ -2,7 +2,9 @@ package edu.michigan.eecs588;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
@@ -21,10 +23,13 @@ import org.jivesoftware.smackx.xdata.FormField;
 public class Client {
 	
     public static void main(String[] args) throws SmackException, IOException, XMPPException {
+		Scanner in = new Scanner(System.in);
+		String input = "";
         AbstractXMPPConnection connection = createConnection();
 		MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
 		MultiUserChat muc = manager.getMultiUserChat("myroom@conference.vaspol");
-		muc.create("FirstRoom");
+//		System.out.println(Arrays.toString(manager.getHostedRooms("vaspol").toArray()));
+		muc.createOrJoin("FirstRoom");
 		// Get the the room's configuration form
 		Form form = muc.getConfigurationForm();
 		// Create a new form to submit based on the original form
@@ -39,11 +44,16 @@ public class Client {
 		// Sets the new owner of the room
 		List<String> owners = new ArrayList<>();
 		owners.add("a@vaspol");
-		submitForm.setAnswer("muc#roomconfig_roomowners", owners);
+//		submitForm.setAnswer("muc#roomconfig_roomowners", owners);
 		// Send the completed form (with default values) to the server to configure the room
-		muc.sendConfigurationForm(submitForm);
+//		muc.sendConfigurationForm(submitForm);
 		System.out.println(muc.toString());
-        while (true) {}
+		System.out.println("Type your message and press Enter to send.");
+		while (true) {
+			input = in.nextLine();
+			muc.sendMessage(input);
+			System.out.println(muc.nextMessage().getBody());
+		}
     }
     
     /**
