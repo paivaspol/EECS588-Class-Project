@@ -8,6 +8,7 @@ import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -34,14 +35,16 @@ public class Messenger {
     Signer userSigner;
     int currentGlobalCount = 0;
     int currentLocalCount = 0;
-    Map<String, SentMsgInfo> localSentMessages;
+    Map<String, SentMsgInfo> localSentMessages = new HashMap<>();
 
     public Messenger(MultiUserChat muc, MessageReceived callback, Map<String, Verifier> publicKeys,
-                     Signer userSigner) {
+                     Signer userSigner, String secret) {
         this.muc = muc;
         this.cb = callback;
         this.publicKeys = publicKeys;
         this.userSigner = userSigner;
+        encrypto = new AESCrypto(secret);
+        decrypto = new AESCrypto(secret);
 
 
         this.muc.addMessageListener(new MessageListener() {
@@ -52,8 +55,10 @@ public class Messenger {
                 if (localSentMessages.containsKey(encryptedMessage)) {
                     SentMsgInfo msgInfo = localSentMessages.get(encryptedMessage);
                     // if the message have the wrong encryption key, resend it
+                    System.out.println("hils");
                     if (msgInfo.localCount/MESSAGE_ROLL_COUNT != currentGlobalCount/MESSAGE_ROLL_COUNT) {
                         try {
+                            System.out.println("oddd");
                             sendMessage(msgInfo.message);
                             localSentMessages.remove(encryptedMessage);
                         } catch (SmackException.NotConnectedException e) {
@@ -68,6 +73,8 @@ public class Messenger {
                 String sign = getSignature(dcryptMsgStr);
                 String messageNoSign = getMessage(dcryptMsgStr);
                 Verifier senderVerf = Messenger.this.publicKeys.get(message.getFrom());
+                System.out.println(senderVerf);
+                System.out.println("start: " + message.getStanzaId());
                 if (dcryptMsgStr != null && senderVerf != null && senderVerf.verify(sign, messageNoSign)) {
                     message.setBody(getMessage(messageNoSign));
                     // count for next message
@@ -83,6 +90,7 @@ public class Messenger {
         String sign = userSigner.sign(message);
         String signedMessage = message + sign;
         String encrypted = encrypto.encrypt(signedMessage);
+
         muc.sendMessage(encrypted);
         rollLocalKey();
     }
