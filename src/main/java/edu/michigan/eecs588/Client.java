@@ -25,7 +25,7 @@ public class Client {
     public static void main(String[] args) throws SmackException, IOException, XMPPException {
     	Map<String, String> configFile = ConfigFileReader.getConfigValues();
         AbstractXMPPConnection connection = createConnection(configFile);
-		MultiUserChat muc = createRoom(connection, "test", configFile);
+		MultiUserChat muc = createRoom(connection, "test4", configFile);
 		muc.sendMessage("Hello!");
 		System.out.println(muc.toString());
         while (true) {}
