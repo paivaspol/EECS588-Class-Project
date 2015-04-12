@@ -47,7 +47,7 @@ public class AESCrypto
         try
         {
             sha256Digest = MessageDigest.getInstance("SHA-256");
-            secretKey = new SecretKeySpec(secret.getBytes(), "AES");
+            secretKey = new SecretKeySpec(Base64.decode(secret), "AES");
             setCiphers();
         }
         catch (NoSuchAlgorithmException e)

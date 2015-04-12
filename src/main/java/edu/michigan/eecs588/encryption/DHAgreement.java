@@ -159,13 +159,10 @@ public class DHAgreement implements Runnable {
 
         g.initialize(ecSpec, new SecureRandom());
 
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-        keyPairGenerator.initialize(2048);
-
         //
         // U side
         //
-        KeyPair U1 = keyPairGenerator.generateKeyPair();
+        KeyPair U1 = g.generateKeyPair();
         KeyPair U2 = g.generateKeyPair();
 
         KeyAgreement uAgree = KeyAgreement.getInstance("ECMQV", "BC");
@@ -174,7 +171,7 @@ public class DHAgreement implements Runnable {
         //
         // V side
         //
-        KeyPair V1 = keyPairGenerator.generateKeyPair();
+        KeyPair V1 = g.generateKeyPair();
         KeyPair V2 = g.generateKeyPair();
 
         KeyAgreement vAgree = KeyAgreement.getInstance("ECMQV", "BC");
@@ -197,6 +194,7 @@ public class DHAgreement implements Runnable {
         {
             System.out.println(ux);
         }
+
     }
 
     public static void main(String args[]) throws Exception
@@ -204,5 +202,14 @@ public class DHAgreement implements Runnable {
         Security.addProvider(new BouncyCastleProvider());
         DHAgreement test = new DHAgreement();
         test.testECMQV();
+
+        ECMQVKeyAgreement agreement1 = new ECMQVKeyAgreement();
+        String publicKey1 = agreement1.doFirstPhase(new ECMQVKeyPair());
+
+        ECMQVKeyAgreement agreement2 = new ECMQVKeyAgreement();
+        String publicKey2 = agreement2.doFirstPhase(new ECMQVKeyPair());
+
+        System.out.println(agreement1.doSecondPhase(publicKey2));
+        System.out.println(agreement2.doSecondPhase(publicKey1));
     }
 }
