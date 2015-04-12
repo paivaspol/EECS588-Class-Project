@@ -33,11 +33,13 @@ public class Client {
 	private static final String INVITE = "$invite";
 	private static final String CREATE = "$create";
 	
+	private static Map<String, String> configFile;
+	
     public static void main(String[] args) throws SmackException, IOException, XMPPException {
 		Scanner in = new Scanner(System.in);
 		String input = "";
 		String prompt = "eecs588";
-    	Map<String, String> configFile = ConfigFileReader.getConfigValues();
+    	configFile = ConfigFileReader.getConfigValues();
         AbstractXMPPConnection connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
 		MultiUserChat muc = null;
@@ -132,7 +134,7 @@ public class Client {
 					String inviter, String reason, String password, Message message) {
 				try {
 					System.out.println("Received an invitation to join: " + muc.getRoom().toString());
-					muc.join(muc.getRoom());
+					muc.join(configFile.get("username"));
 					System.out.println("Joined: " + muc.getRoom().toString());
 				} catch (NoResponseException | XMPPErrorException
 						| NotConnectedException e) {
