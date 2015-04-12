@@ -13,9 +13,10 @@ public class Main {
 
 	private static final String INVITE = "$invite";
 	private static final String CREATE = "$create";
+	private static final String PRIVATE = "$private";
 	
 	public static void main(String[] args) throws SmackException, IOException, XMPPException {
-		Client client = new Client();
+		Client client = new Client("smack2.properties");
 		Scanner in = new Scanner(System.in);
 		String input = "";
 		String prompt = "eecs588";
@@ -31,6 +32,9 @@ public class Main {
 			} else if (commandType.equals(CommandType.INVITE)) {
 				String[] splitted = input.split(" ");
 				client.inviteParticipant(splitted[1]);
+			} else if (input.startsWith(PRIVATE)) {
+				String[] splitted = input.split(" ");
+				client.createPrivateChat(splitted[1]);
 			} else {
 				MultiUserChat muc = client.getMultiUserChat();
 				muc.sendMessage(input);
