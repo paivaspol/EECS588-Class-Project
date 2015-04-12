@@ -2,7 +2,6 @@ package edu.michigan.eecs588;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Map;
@@ -20,12 +19,9 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Presence.Type;
-import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smackx.muc.InvitationListener;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jivesoftware.smackx.muc.MultiUserChatManager;
-import org.jivesoftware.smackx.xdata.Form;
-import org.jivesoftware.smackx.xdata.FormField;
 import org.jxmpp.util.XmppStringUtils;
 
 /**
@@ -33,21 +29,43 @@ import org.jxmpp.util.XmppStringUtils;
  */
 public class Client {
 	
+	private static final String INVITE = "$invite";
+	private static final String CREATE = "$create";
+	
     public static void main(String[] args) throws SmackException, IOException, XMPPException {
 		Scanner in = new Scanner(System.in);
 		String input = "";
+		String prompt = "eecs588";
     	Map<String, String> configFile = ConfigFileReader.getConfigValues();
         AbstractXMPPConnection connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
-		MultiUserChat muc = createRoom(connection, configFile);
+		MultiUserChat muc = null;
 		while (true) {
-			System.out.print(muc.getNickname() + "> ");
+			System.out.print(prompt + "> ");
 			input = in.nextLine();
-			muc.sendMessage(input);
-
-			Message message = muc.nextMessage();
-			System.out.println(XmppStringUtils.parseResource(message.getFrom()) + " says: " + message.getBody());
+			CommandType commandType = parseInput(input);
+			if (commandType.equals(CommandType.CREATE)) {
+				String[] splitted = input.split(" ");
+				muc = createRoom(connection, configFile, splitted[1]);
+				prompt = muc.getNickname();
+			} else if (commandType.equals(CommandType.INVITE)) {
+				String[] splitted = input.split(" ");
+				inviteParticipant(muc, splitted[1]);
+			} else {
+				muc.sendMessage(input);
+				Message message = muc.nextMessage();
+				System.out.println(XmppStringUtils.parseResource(message.getFrom()) + " says: " + message.getBody());
+			}
 		}
+    }
+    
+    private static CommandType parseInput(String command) {
+    	if (command.startsWith(CREATE)) {
+    		return CommandType.CREATE;
+    	} else if (command.startsWith(INVITE)) {
+    		return CommandType.INVITE;
+    	}
+    	return CommandType.MESSAGE;
     }
     
     /**
@@ -65,11 +83,12 @@ public class Client {
 				.setPort(Integer.valueOf(configFile.get("port")))
 				.setSecurityMode(SecurityMode.disabled)
 				.build();
+		String username = configFile.get("username");
 		AbstractXMPPConnection connection = new XMPPTCPConnection(config);
 		connection.connect();
 		connection.login(configFile.get("username"), configFile.get("password"));
 		setStatus(connection, true,"ONLINE");
-		System.out.println("Connected to XMPP server!");
+		System.out.println("Connected to XMPP server with " + username);
     	return connection;
     }
     
@@ -87,10 +106,10 @@ public class Client {
      * @throws XMPPErrorException 
      * @throws SmackException 
      */
-    private static MultiUserChat createRoom(AbstractXMPPConnection connection, Map<String, String> configFile) throws XMPPErrorException, SmackException {
+    private static MultiUserChat createRoom(AbstractXMPPConnection connection, Map<String, String> configFile, String roomname) throws XMPPErrorException, SmackException {
     	MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
     	String multiChatService = configFile.get("multiUserChatService");
-		MultiUserChat muc = manager.getMultiUserChat(configFile.get("roomname") + "@" + multiChatService);
+		MultiUserChat muc = manager.getMultiUserChat(roomname + "@" + multiChatService);
 		muc.create(configFile.get("username"));
 
 		System.out.println("Welcome to " + muc.getRoom());
@@ -132,6 +151,7 @@ public class Client {
      * @throws NotConnectedException if not connected
      */
     private static void inviteParticipant(MultiUserChat muc, String user) throws NotConnectedException {
+    	System.out.println("Inviting " + user);
     	muc.invite(user, "I love you");
     }
 }
