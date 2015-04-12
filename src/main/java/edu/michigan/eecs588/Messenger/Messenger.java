@@ -72,9 +72,8 @@ public class Messenger {
                 String dcryptMsgStr = decrypto.decrypt(encryptedMessage);
                 String sign = getSignature(dcryptMsgStr);
                 String messageNoSign = getMessage(dcryptMsgStr);
-                Verifier senderVerf = Messenger.this.publicKeys.get(message.getFrom());
+                Verifier senderVerf = Messenger.this.publicKeys.get(message.getStanzaId());
                 System.out.println(senderVerf);
-                System.out.println("start: " + message.getStanzaId());
                 if (dcryptMsgStr != null && senderVerf != null && senderVerf.verify(sign, messageNoSign)) {
                     message.setBody(getMessage(messageNoSign));
                     // count for next message
@@ -90,7 +89,7 @@ public class Messenger {
         String sign = userSigner.sign(message);
         String signedMessage = message + sign;
         String encrypted = encrypto.encrypt(signedMessage);
-
+        localSentMessages.put(encrypted, new SentMsgInfo(message, currentLocalCount));
         muc.sendMessage(encrypted);
         rollLocalKey();
     }
