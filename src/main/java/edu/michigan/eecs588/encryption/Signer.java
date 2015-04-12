@@ -1,5 +1,7 @@
 package edu.michigan.eecs588.encryption;
 
+import org.jivesoftware.smack.util.stringencoder.java7.Base64;
+
 import java.io.UnsupportedEncodingException;
 import java.security.*;
 
@@ -24,13 +26,13 @@ public class Signer
         }
     }
 
-    public byte[] sign(String message)
+    public String sign(String message)
     {
         try
         {
             byte[] data = message.getBytes("UTF-8");
             signature.update(data);
-            return signature.sign();
+            return Base64.encodeBytes(signature.sign());
         }
         catch (UnsupportedEncodingException e)
         {
