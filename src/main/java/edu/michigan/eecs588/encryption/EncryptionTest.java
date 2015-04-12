@@ -32,7 +32,7 @@ public class EncryptionTest
 
         keyPair = new RSAKeyPair();
         Signer signer2 = new Signer(keyPair.getPrivateKey());
-        Verifier verifier2 = new Verifier(keyPair.getPublicKey());
+        Verifier verifier2 = new Verifier(keyPair.getPublicKeyAsString());
 
         System.out.println(verifier1.verify(message, signer1.sign(message)));
         System.out.println(verifier1.verify(message, signer2.sign(message)));

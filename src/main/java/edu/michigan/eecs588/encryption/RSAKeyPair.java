@@ -1,6 +1,6 @@
 package edu.michigan.eecs588.encryption;
 
-import org.jivesoftware.smack.util.stringencoder.Base64;
+import org.jivesoftware.smack.util.stringencoder.java7.Base64;
 
 import java.security.*;
 
@@ -45,6 +45,6 @@ public class RSAKeyPair
 
     public String getPublicKeyAsString()
     {
-        return Base64.encodeToString(publicKey.getEncoded());
+        return Base64.encodeBytes(publicKey.getEncoded());
     }
 }

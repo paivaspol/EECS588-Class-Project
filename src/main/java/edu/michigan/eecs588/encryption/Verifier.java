@@ -34,7 +34,7 @@ public class Verifier
         try
         {
             PublicKey publicKey =
-                    KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyString.getBytes()));
+                    KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.decode(publicKeyString)));
             signature = Signature.getInstance("SHA256withRSA");
             signature.initVerify(publicKey);
         }
