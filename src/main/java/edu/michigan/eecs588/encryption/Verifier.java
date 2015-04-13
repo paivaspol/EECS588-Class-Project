@@ -12,6 +12,7 @@ public class Verifier
     private Signature signature;
 
     /**
+     * An object used for verifying signatures
      * @param publicKey The public key for verifying the messages
      */
     public Verifier(PublicKey publicKey)
@@ -28,6 +29,7 @@ public class Verifier
     }
 
     /**
+     *  An object used for verifying signatures given a public key as a string
      * @param publicKeyString The public key for verifying the messages encoded using Base64
      */
     public Verifier(String publicKeyString)
@@ -46,6 +48,7 @@ public class Verifier
     }
 
     /**
+     * Verify a signature
      * @param message The message
      * @param cipherText The signature
      * @return True if the verification succeeds, false otherwise

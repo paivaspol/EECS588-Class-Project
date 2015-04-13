@@ -22,7 +22,7 @@ public class AESCrypto
     private MessageDigest sha256Digest;
 
     /**
-     * Generate an 256-bit AES symmetric key
+     * Generate a 256-bit AES symmetric key
      */
     public AESCrypto()
     {
@@ -50,6 +50,7 @@ public class AESCrypto
     }
 
     /**
+     * Generate an AES symmetric key given a byte array
      * @param secret A symmetric key as a byte array
      */
     public AESCrypto(byte[] secret)
@@ -67,6 +68,7 @@ public class AESCrypto
     }
 
     /**
+     * Generate an AES symmetric key given a encoded byte array
      * @param secret A Base64-encoded symmetric key
      */
     public AESCrypto(String secret)
@@ -100,9 +102,9 @@ public class AESCrypto
     }
 
     /**
-     * Encrypt the message
+     * Encrypt a message
      * @param rawText Message to encrypt
-     * @return The encrypted message
+     * @return The encrypted message in Base64 encoding
      */
     public String encrypt(String rawText)
     {
@@ -118,6 +120,11 @@ public class AESCrypto
         return null;
     }
 
+    /**
+     * Decrypt a message
+     * @param cipherText The cipher text to be decrypted
+     * @return The original message
+     */
     public String decrypt(String cipherText)
     {
         try
@@ -136,11 +143,18 @@ public class AESCrypto
         return null;
     }
 
+    /**
+     * Get the symmetric key as a Base64 encoded string
+     * @return
+     */
     public String getSecret()
     {
         return Base64.encodeBytes(secretKey.getEncoded());
     }
 
+    /**
+     * Roll the symmetric key
+     */
     public void rollKey()
     {
         secretKey = new SecretKeySpec(sha256Digest.digest(secretKey.getEncoded()), "AES");

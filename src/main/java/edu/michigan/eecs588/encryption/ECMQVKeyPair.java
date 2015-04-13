@@ -41,6 +41,9 @@ public class ECMQVKeyPair
         }
     }
 
+    /**
+     * Generate an ECMQV key pair
+     */
     public ECMQVKeyPair()
     {
         KeyPair pair = generator.generateKeyPair();
@@ -48,16 +51,28 @@ public class ECMQVKeyPair
         publicKey  =pair.getPublic();
     }
 
+    /**
+     * Get the private key
+     * @return the private key
+     */
     public PrivateKey getPrivateKey()
     {
         return privateKey;
     }
 
+    /**
+     * Get the public key
+     * @return the public key
+     */
     public PublicKey getPublicKey()
     {
         return publicKey;
     }
 
+    /**
+     * Get the public key as a Base64 encoded string
+     * @return the public key as a string
+     */
     public String getPublicKeyAsString()
     {
         return Base64.encodeBytes(publicKey.getEncoded());
