@@ -143,26 +143,6 @@ public class Client {
 	 * Setup the chat listener for private messaging (pairwise).
 	 */
 	private void setupChatListener() {
-		listener = new ChatManagerListener()
-		{
-			@Override
-			public void chatCreated(Chat chat, boolean createdLocally)
-			{
-				if (!createdLocally)
-				{
-					try
-					{
-						privateChats.put(chat.getParticipant(), chat);
-						(new Thread(new PassiveAuthThread(Client.this, chat.getParticipant(), longTermKeyPair, keyPair))).start();
-					}
-					catch (NotConnectedException e)
-					{
-						throw new RuntimeException(e);
-					}
-				}
-			}
-		};
-		ChatManager.getInstanceFor(connection).addChatListener(listener);
 	}
 
 	public MultiUserChat getMultiUserChat() {
@@ -321,6 +301,26 @@ public class Client {
 	{
 		List<String> occupants = muc.getOccupants();
 		Collections.sort(occupants);
+		listener = new ChatManagerListener()
+		{
+			@Override
+			public void chatCreated(Chat chat, boolean createdLocally)
+			{
+				if (!createdLocally)
+				{
+					try
+					{
+						privateChats.put(chat.getParticipant(), chat);
+						(new Thread(new PassiveAuthThread(Client.this, chat.getParticipant(), longTermKeyPair, keyPair))).start();
+					}
+					catch (NotConnectedException e)
+					{
+						throw new RuntimeException(e);
+					}
+				}
+			}
+		};
+		ChatManager.getInstanceFor(connection).addChatListener(listener);
 
 		try
 		{
