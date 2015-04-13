@@ -43,6 +43,7 @@ public class Client {
 	private AbstractXMPPConnection connection;
 	private Messenger messenger;
 	
+	/* For testing purposes. */
 	private String privateKey = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC4eYiG8Atjnu6ePk3vZn7yZR7U" +
 								"Om9kY5hQtQYutLFYJoeZ5ivffhE+N/9xm0fp9xZ8FquRFaZGVcau3mjstyQL456oOgQ2BJ0h7lO3" +
 								"JN0khMd/LtXw8rrn/Im5EV+qoQpNWNv9W8f6+yTm7BanSwosMhiWF3ie/UKjqt+jngYKYFnhwqGD" +
@@ -66,7 +67,12 @@ public class Client {
 								"NIe6GoVmp9u9GpQvdcL4QnG2JJ86NyqojUTh1XC5Mc903dRxPkcyydssxyE0dxldkKeo2mpvVBMq" +
 								"gDvVTQPycQJgFgwKiKocFzLApdY5" ;		
 			
-	private String publicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuHmIhvALY57unj5N72Z+8mUe1DpvZGOYULUGLrSxWCaHmeYr334RPjf/cZtH6fcWfBarkRWmRlXGrt5o7LckC+OeqDoENgSdIe5TtyTdJITHfy7V8PK65/yJuRFfqqEKTVjb/VvH+vsk5uwWp0sKLDIYlhd4nv1Co6rfo54GCmBZ4cKhg3A3N4/lAekQ3q1w5UJaE0qFUkt5DT2d24at++3xMxzrmJ7V0/f+B/jpZ8nzJskJPeUE/5uYfwfzobyOP8PTJF7ePU5rjy0u3+ooZ0GCfKOktgU4ZW3nW6i14XiVRSD9C9fe/HLeANzVjAh+wpaVTZutnOhQyTWWnWoycQIDAQAB"; 
+	private String publicKey = 	"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuHmIhvALY57unj5N72Z+8mUe1DpvZGOYU" +
+							 	"LUGLrSxWCaHmeYr334RPjf/cZtH6fcWfBarkRWmRlXGrt5o7LckC+OeqDoENgSdIe5TtyTdJITHfy" +
+							 	"7V8PK65/yJuRFfqqEKTVjb/VvH+vsk5uwWp0sKLDIYlhd4nv1Co6rfo54GCmBZ4cKhg3A3N4/lAek" +
+							 	"Q3q1w5UJaE0qFUkt5DT2d24at++3xMxzrmJ7V0/f+B/jpZ8nzJskJPeUE/5uYfwfzobyOP8PTJF7e" +
+							 	"PU5rjy0u3+ooZ0GCfKOktgU4ZW3nW6i14XiVRSD9C9fe/HLeANzVjAh+wpaVTZutnOhQyTWWnWoyc" +
+							 	"QIDAQAB"; 
 	
 	/* For testing purposes. */
 	Map<String, Verifier> publicKeys = new HashMap<String, Verifier>();
@@ -87,7 +93,7 @@ public class Client {
 		/* For testing purposes. */
 		Verifier veri = new Verifier(X.getPublicKey());
 		publicKeys.put(configFile.get("username"), veri);
-		publicKeys.put("d", veri);
+		publicKeys.put("eugene", veri);
 	}
 	
 	public MultiUserChat getMultiUserChat() {

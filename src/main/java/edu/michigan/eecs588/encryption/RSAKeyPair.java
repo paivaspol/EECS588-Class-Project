@@ -4,6 +4,7 @@ import org.jivesoftware.smack.util.stringencoder.java7.Base64;
 
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 public class RSAKeyPair
@@ -41,7 +42,7 @@ public class RSAKeyPair
         try
         {
             publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.decode(publicKeyString)));
-            privateKey = KeyFactory.getInstance("RSA").generatePrivate(new X509EncodedKeySpec(Base64.decode(privateKeyString)));
+            privateKey = KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(Base64.decode(privateKeyString)));
         }
         catch (InvalidKeySpecException | NoSuchAlgorithmException e)
         {
