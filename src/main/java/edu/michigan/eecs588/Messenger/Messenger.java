@@ -7,6 +7,7 @@ import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.muc.MultiUserChat;
+import org.jxmpp.util.XmppStringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -55,10 +56,8 @@ public class Messenger {
                 if (localSentMessages.containsKey(encryptedMessage)) {
                     SentMsgInfo msgInfo = localSentMessages.get(encryptedMessage);
                     // if the message have the wrong encryption key, resend it
-                    System.out.println("hils");
                     if (msgInfo.localCount/MESSAGE_ROLL_COUNT != currentGlobalCount/MESSAGE_ROLL_COUNT) {
                         try {
-                            System.out.println("oddd");
                             sendMessage(msgInfo.message);
                             localSentMessages.remove(encryptedMessage);
                         } catch (SmackException.NotConnectedException e) {
@@ -70,12 +69,14 @@ public class Messenger {
                 }
 
                 String dcryptMsgStr = decrypto.decrypt(encryptedMessage);
+//                System.out.println(dcryptMsgStr);
                 String sign = getSignature(dcryptMsgStr);
                 String messageNoSign = getMessage(dcryptMsgStr);
-                Verifier senderVerf = Messenger.this.publicKeys.get(message.getStanzaId());
-                System.out.println(senderVerf);
-                if (dcryptMsgStr != null && senderVerf != null && senderVerf.verify(sign, messageNoSign)) {
-                    message.setBody(getMessage(messageNoSign));
+                Verifier senderVerf = Messenger.this.publicKeys.get(XmppStringUtils.parseResource(message.getFrom()));
+                if (dcryptMsgStr != null && senderVerf != null && senderVerf.verify(messageNoSign, sign)) {
+//                    System.out.println("hi!!asdasd========");
+                    System.out.println(messageNoSign);
+                    message.setBody(messageNoSign);
                     // count for next message
                     cb.onMessageReceived(message);
                     rollGlobalKey();
@@ -87,7 +88,7 @@ public class Messenger {
 
     public void sendMessage(String message) throws SmackException.NotConnectedException{
         String sign = userSigner.sign(message);
-        String signedMessage = message + sign;
+        String signedMessage = sign + "," + message;
         String encrypted = encrypto.encrypt(signedMessage);
         localSentMessages.put(encrypted, new SentMsgInfo(message, currentLocalCount));
         muc.sendMessage(encrypted);
@@ -116,11 +117,13 @@ public class Messenger {
     }
 
     private String getSignature(String message) {
-        return message.substring(message.length() - 32);
+        String[] sign = message.split(",");
+        return sign.length > 0 ? sign[0] : null;
     }
 
     private String getMessage(String message) {
-        return message.substring(0, message.length() - 32);
+        String[] sign = message.split(",");
+        return sign.length > 1 ? sign[1] : "";
     }
 
 }

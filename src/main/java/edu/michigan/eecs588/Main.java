@@ -51,14 +51,10 @@ public class Main {
 				Messenger m = new Messenger(client.getMultiUserChat(), new MessageReceived() {
 					@Override
 					public void onMessageReceived(Message message) {
-						queue.add(message);
+						System.out.println(XmppStringUtils.parseResource(message.getFrom()) + " says: " + message.getBody());
 					}
 				}, publicKeys, sign, "2xil0x35oH8onjyLeudMlP+5h18r/HZ3drd3WXrqm9I=");
 				m.sendMessage(input);
-				if (!queue.isEmpty()) {
-					Message message = queue.remove();
-					System.out.println(XmppStringUtils.parseResource(message.getFrom()) + " says: " + message.getBody());
-				}
 			}
 		}
 	}
