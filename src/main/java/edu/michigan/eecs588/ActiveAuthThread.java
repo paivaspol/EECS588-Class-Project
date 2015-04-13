@@ -18,6 +18,7 @@ public class ActiveAuthThread implements Runnable
     private Chat chat;
     private RSAKeyPair keyPair;
     private String reply;
+    private ChatMessageListener listener;
 
     /**
      * @param client The current chat client
@@ -26,15 +27,25 @@ public class ActiveAuthThread implements Runnable
      * @param keyPair The group specific key pair
      * @throws SmackException.NotConnectedException
      */
-    public ActiveAuthThread(Client client, String anotherUser, ECMQVKeyPair longTermKeyPair, RSAKeyPair keyPair)
+    public ActiveAuthThread(Client client, Chat chat, String anotherUser, ECMQVKeyPair longTermKeyPair, RSAKeyPair keyPair)
             throws SmackException.NotConnectedException
     {
         this.client = client;
         this.longTermKeyPair = longTermKeyPair;
         this.anotherUser = anotherUser;
-        chat = client.createPrivateChat(anotherUser);
+        this.chat = chat;
         this.keyPair = keyPair;
         reply = null;
+        listener = new ChatMessageListener()
+        {
+            @Override
+            public void processMessage(Chat chat, Message message)
+            {
+                reply = message.getBody();
+                ActiveAuthThread.this.notify();
+            }
+        };
+        chat.addMessageListener(listener);
     }
 
     @Override
@@ -59,6 +70,7 @@ public class ActiveAuthThread implements Runnable
             {
                 client.authDone(anotherUser, null);
             }
+            chat.removeMessageListener(listener);
         }
         catch (InterruptedException e)
         {
@@ -78,16 +90,9 @@ public class ActiveAuthThread implements Runnable
         try
         {
             chat.sendMessage(MQVPublicKey);
-            chat.addMessageListener(new ChatMessageListener()
-            {
-                @Override
-                public void processMessage(Chat chat, Message message)
-                {
-                    reply = message.getBody();
-                    ActiveAuthThread.this.notify();
-                }
-            });
-            return agreement.doSecondPhase(waitForReply());
+            AESCrypto crypto = agreement.doSecondPhase(waitForReply());
+            client.MQVDone(anotherUser, crypto);
+            return crypto;
 
         }
         catch (SmackException.NotConnectedException e)
@@ -98,15 +103,18 @@ public class ActiveAuthThread implements Runnable
 
     private String waitForReply()
     {
-        synchronized (this)
+        while (reply == null)
         {
-            try
+            synchronized (this)
             {
-                this.wait();
-            }
-            catch (InterruptedException e)
-            {
-                e.printStackTrace();
+                try
+                {
+                    this.wait();
+                }
+                catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                }
             }
         }
         String message = reply;

@@ -1,11 +1,6 @@
 package edu.michigan.eecs588;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
+import edu.michigan.eecs588.encryption.AESCrypto;
 import edu.michigan.eecs588.encryption.ECMQVKeyPair;
 import edu.michigan.eecs588.encryption.RSAKeyPair;
 import org.jivesoftware.smack.AbstractXMPPConnection;
@@ -15,52 +10,70 @@ import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.chat.Chat;
 import org.jivesoftware.smack.chat.ChatManager;
 import org.jivesoftware.smack.chat.ChatManagerListener;
+import org.jivesoftware.smack.chat.ChatMessageListener;
 import org.jivesoftware.smack.packet.Message;
-import org.jivesoftware.smack.tcp.XMPPTCPConnection;
-import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
-import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Presence.Type;
+import org.jivesoftware.smack.tcp.XMPPTCPConnection;
+import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
+import org.jivesoftware.smack.util.stringencoder.java7.Base64;
 import org.jivesoftware.smackx.muc.InvitationListener;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jivesoftware.smackx.muc.MultiUserChatManager;
 import org.jivesoftware.smackx.xdata.Form;
 import org.jivesoftware.smackx.xdata.FormField;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
+
 /**
  * Entry point for the client for the XMPP.
  */
 public class Client {
-	
+
 	private Map<String, String> configFile;
 	private MultiUserChat muc;
 	private AbstractXMPPConnection connection;
 	private String roomName;
+	private final Object LOCK;
 	private ECMQVKeyPair longTermKeyPair;
 	private RSAKeyPair keyPair;
 	private final TreeMap<String, String> participants;
-    
+	private final Map<String, AESCrypto> cryptoes;
+	private final TreeMap<String, Chat> privateChats;
+	private int verificationCount;
+	private boolean verificationSucceeds;
+	private AESCrypto rootKey;
+
 	/**
 	 * Constructs the client.
-	 * @throws IOException 
-	 * @throws XMPPException 
-	 * @throws SmackException 
+	 * @throws IOException
+	 * @throws XMPPException
+	 * @throws SmackException
 	 */
 	public Client() throws IOException, SmackException, XMPPException {
 		this.configFile = ConfigFileReader.getConfigValues();
 		this.connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
 		setupChatListener();
-		participants = new TreeMap<>();
+
 		longTermKeyPair = new ECMQVKeyPair();
+		participants = new TreeMap<>();
+		cryptoes = new HashMap<>();
+		privateChats = new TreeMap<>();
+		LOCK = new Object();
 	}
-	
+
 	/**
 	 * Constructs the client.
-	 * 
+	 *
 	 * @param configFilename the config file name
 	 * @throws IOException
 	 * @throws SmackException
@@ -71,10 +84,14 @@ public class Client {
 		this.connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
 		setupChatListener();
-		participants = new TreeMap<>();
+
 		longTermKeyPair = new ECMQVKeyPair();
+		participants = new TreeMap<>();
+		cryptoes = new HashMap<>();
+		privateChats = new TreeMap<>();
+		LOCK = new Object();
 	}
-	
+
 	/**
 	 * Setup the chat listener for private messaging (pairwise).
 	 */
@@ -86,23 +103,31 @@ public class Client {
 			{
 				if (!createdLocally)
 				{
-//					(new Thread(new PassiveAuthThread())).start();
+					try
+					{
+						privateChats.put(chat.getParticipant(), chat);
+						(new Thread(new PassiveAuthThread(Client.this, chat.getParticipant(), longTermKeyPair, keyPair))).start();
+					}
+					catch (NotConnectedException e)
+					{
+						throw new RuntimeException(e);
+					}
 				}
 			}
 		});
 	}
-	
+
 	public MultiUserChat getMultiUserChat() {
 		return muc;
 	}
-	
+
 	public AbstractXMPPConnection getConnection() {
 		return connection;
 	}
-    
+
     /**
      * Connects to the xmpp server.
-     * 
+     *
      * @throws SmackException
      * @throws IOException
      * @throws XMPPException
@@ -123,19 +148,19 @@ public class Client {
 		System.out.println("Connected to XMPP server with " + username);
     	return connection;
     }
-    
+
     public static void setStatus(AbstractXMPPConnection connection, boolean available, String status) throws XMPPException, NotConnectedException {
         Presence.Type type = available ? Type.available : Type.unavailable;
         Presence presence = new Presence(type);
         presence.setStatus(status);
         connection.sendStanza(presence);
     }
-    
+
     /**
-     * 
+     *
      * @param roomName Name of the room to be created
-     * @throws XMPPErrorException 
-     * @throws SmackException 
+     * @throws XMPPErrorException
+     * @throws SmackException
      */
     public void createRoom(String roomName) throws XMPPErrorException, SmackException {
     	MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
@@ -164,10 +189,10 @@ public class Client {
 		this.muc = muc;
 		this.roomName = roomName;
     }
-    
+
     /**
      * Adds an invitation listener to the connection
-     * 
+     *
      * @param connection the connection to add to
      */
     public void addInvitationListener(AbstractXMPPConnection connection) {
@@ -192,10 +217,10 @@ public class Client {
 			}
 		});
     }
-    
+
     /**
      * Invites a user.
-     * 
+     *
      * @param user the user
      * @throws NotConnectedException if not connected
      */
@@ -204,14 +229,14 @@ public class Client {
     	System.out.println("Inviting " + user);
     	muc.invite(username, "I love you");
     }
-    
+
     private String generateUsername(String user) {
     	return user + "@" + configFile.get("serviceName");
     }
-    
+
     /**
      * Creates a private message chat.
-     * 
+     *
      * @param user the user to chat with
      * @return the chat
      * @throws NotConnectedException
@@ -226,14 +251,90 @@ public class Client {
 	 */
 	public void authenticate() throws AuthenticationFailtureException
 	{
-		keyPair = new RSAKeyPair();
 		List<String> occupants = muc.getOccupants();
-		int indexOfMe = occupants.indexOf(configFile.get("username"));
-		for (; indexOfMe < occupants.size() - 1; ++indexOfMe)
+		Collections.sort(occupants);
+
+		/* Step 1: exchange public keys with all other participants */
+		exchangePublicKeys(occupants);
+
+		try
+		{
+			/* Step 2: verify that all participants have the same view of the public keys */
+			verifyPublicKeys();
+
+			/* Step 3: the first participant(in alphabetic order) generates the root key
+			*          and sends it to all other participants */
+			sendOrReceiveRootKey();
+
+			/* Step 4: verify that all participants have the same root key */
+			verifyRootKey();
+		}
+		catch (NoSuchAlgorithmException | InterruptedException | UnsupportedEncodingException e)
+		{
+			e.printStackTrace();
+		}
+		catch (NotConnectedException e)
+		{
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	private void verifyRootKey() throws NoSuchAlgorithmException, UnsupportedEncodingException, InterruptedException, AuthenticationFailtureException
+	{
+		MessageDigest sha256Digest = MessageDigest.getInstance("SHA-256");
+		String hash = Base64.encodeBytes(sha256Digest.digest(rootKey.getSecret().getBytes("UTF-8")));
+		verifyHash(hash);
+	}
+
+	private void sendOrReceiveRootKey() throws NotConnectedException, InterruptedException
+	{
+		if (participants.firstKey().equals(configFile.get("username")))
+        {
+            // I am the first user. Generate a root key and send to the others
+            rootKey = new AESCrypto();
+            for (Map.Entry<String, Chat> privateChat : privateChats.entrySet())
+            {
+                privateChat.getValue().sendMessage(rootKey.getSecret());
+            }
+        }
+        else
+        {
+            Chat chatWithFirstParticipant = privateChats.firstEntry().getValue();
+			final ChatMessageListener listener = new ChatMessageListener()
+			{
+				@Override
+				public void processMessage(Chat chat, Message message)
+				{
+					rootKey = new AESCrypto(message.getBody());
+
+					synchronized (LOCK)
+					{
+						LOCK.notify();
+					}
+				}
+			};
+            chatWithFirstParticipant.addMessageListener(listener);
+            synchronized (LOCK)
+            {
+                LOCK.wait();
+				chatWithFirstParticipant.removeMessageListener(listener);
+            }
+        }
+	}
+
+	private void exchangePublicKeys(List<String> occupants)
+	{
+		keyPair = new RSAKeyPair();
+		int indexOfUser = occupants.indexOf(configFile.get("username"));
+		for (; indexOfUser < occupants.size() - 1; ++indexOfUser)
 		{
 			try
 			{
-				(new Thread(new ActiveAuthThread(Client.this, occupants.get(indexOfMe), longTermKeyPair, keyPair))).start();
+				String user = occupants.get(indexOfUser);
+				Chat chat = createPrivateChat(user);
+				privateChats.put(user, chat);
+				(new Thread(new ActiveAuthThread(Client.this, chat, user, longTermKeyPair, keyPair))).start();
 			}
 			catch (NotConnectedException e)
 			{
@@ -241,21 +342,83 @@ public class Client {
 			}
 		}
 
-		synchronized (participants)
+		synchronized (LOCK)
 		{
 			try
 			{
-				participants.wait();
+				LOCK.wait();
 			}
 			catch (InterruptedException e)
 			{
 				e.printStackTrace();
 			}
 		}
+	}
 
-
+	private void verifyPublicKeys() throws NoSuchAlgorithmException, AuthenticationFailtureException, InterruptedException
+	{
+		MessageDigest sha256Digest = MessageDigest.getInstance("SHA-256");
 		for (Map.Entry<String, String> keyValue : participants.entrySet())
 		{
+			if (keyValue.getValue() == null)
+			{
+				throw new AuthenticationFailtureException();
+			}
+			else
+			{
+				try
+				{;
+					sha256Digest.update(keyValue.getKey().getBytes("UTF-8"));
+					sha256Digest.update(keyValue.getValue().getBytes("UTF-8"));
+				}
+				catch (UnsupportedEncodingException e)
+				{
+					e.printStackTrace();
+				}
+			}
+		}
+		verifyHash(Base64.encodeBytes(sha256Digest.digest()));
+	}
+
+	private void verifyHash(String hash) throws InterruptedException, AuthenticationFailtureException
+	{
+		verificationCount = 0;
+		verificationSucceeds = true;
+
+		for (Map.Entry<String, Chat> privateChat : privateChats.entrySet())
+		{
+			try
+			{
+				String user = privateChat.getKey();
+				Chat chat = privateChat.getValue();
+				(new Thread(new GroupVerificationThread(Client.this, chat, hash, cryptoes.get(user)))).start();
+			}
+			catch (NotConnectedException e)
+			{
+				throw new RuntimeException(e);
+			}
+		}
+		synchronized (LOCK)
+		{
+			LOCK.wait();
+		}
+
+		if (!verificationSucceeds)
+		{
+			throw new AuthenticationFailtureException();
+		}
+	}
+
+	/**
+	 * Called when a pairwise MQV key agreement is done
+	 * @param anotherUser The user with which the agreement happens
+	 * @param crypto The symmetric key derived from MQV
+	 */
+	public void MQVDone(String anotherUser, AESCrypto crypto)
+	{
+		synchronized (cryptoes)
+		{
+			cryptoes.put(anotherUser, crypto);
 		}
 	}
 
@@ -266,12 +429,29 @@ public class Client {
 	 */
 	public void authDone(String anotherUser, String publicKey)
 	{
-		synchronized (participants)
+		synchronized (LOCK)
 		{
 			participants.put(anotherUser, publicKey);
 			if (participants.size() == muc.getOccupantsCount())
 			{
-				participants.notify();
+				LOCK.notify();
+			}
+		}
+	}
+
+	/**
+	 * Called when a pairwise verification is done
+	 * @param verificationSucceeds Whether or not the verification succeeds
+	 */
+	public void verify(boolean verificationSucceeds)
+	{
+		this.verificationSucceeds = this.verificationSucceeds && verificationSucceeds;
+		synchronized (LOCK)
+		{
+			++verificationCount;
+			if (verificationCount == muc.getOccupantsCount())
+			{
+				LOCK.notify();
 			}
 		}
 	}

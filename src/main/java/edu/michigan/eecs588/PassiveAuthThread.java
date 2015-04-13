@@ -77,6 +77,7 @@ public class PassiveAuthThread implements Runnable
         {
             throw new RuntimeException(e);
         }
+        chat.close();
     }
 
     private AESCrypto deriveMQVKey(ECMQVKeyPair longTermKeyPair) throws InterruptedException
