@@ -41,9 +41,11 @@ public class Main {
 			} else if (commandType.equals(CommandType.INVITE)) {
 				String[] splitted = input.split(" ");
 				client.inviteParticipant(splitted[1]);
-			} else if (m != null) {
+			} else {
 				m = client.getMessenger();
-				m.sendMessage(input);
+				if (m != null) {
+					m.sendMessage(input);
+				}
 			}
 		}
 	}
