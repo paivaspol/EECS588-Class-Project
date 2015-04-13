@@ -1,18 +1,25 @@
 package edu.michigan.eecs588;
 
 import java.io.IOException;
-import java.util.Scanner;
+import java.util.*;
 
+import edu.michigan.eecs588.Messenger.MessageReceived;
+import edu.michigan.eecs588.Messenger.Messenger;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jxmpp.util.XmppStringUtils;
 
+import edu.michigan.eecs588.encryption.RSAKeyPair;
+import edu.michigan.eecs588.encryption.Signer;
+import edu.michigan.eecs588.encryption.Verifier;
+
 public class Main {
 
 	private static final String INVITE = "$invite";
 	private static final String CREATE = "$create";
+
 	private static final String PRIVATE = "$private";
 	
 	public static void main(String[] args) throws SmackException, IOException, XMPPException {
@@ -20,6 +27,8 @@ public class Main {
 		Scanner in = new Scanner(System.in);
 		String input = "";
 		String prompt = "eecs588";
+
+		Messenger m = null;
 		while (true) {
 			System.out.print(prompt + "> ");
 			input = in.nextLine();
@@ -29,6 +38,7 @@ public class Main {
 				client.createRoom(splitted[1]);
 				MultiUserChat muc = client.getMultiUserChat();
 				prompt = muc.getRoom().toString();
+				m = client.getMessenger();
 			} else if (commandType.equals(CommandType.INVITE)) {
 				String[] splitted = input.split(" ");
 				client.inviteParticipant(splitted[1]);
@@ -36,10 +46,10 @@ public class Main {
 				String[] splitted = input.split(" ");
 				client.createPrivateChat(splitted[1]);
 			} else {
-				MultiUserChat muc = client.getMultiUserChat();
-				muc.sendMessage(input);
-				Message message = muc.nextMessage();
-				System.out.println(XmppStringUtils.parseResource(message.getFrom()) + " says: " + message.getBody());
+				m = client.getMessenger();
+				if (m != null) {
+					m.sendMessage(input);
+				}
 			}
 		}
 	}
@@ -52,5 +62,7 @@ public class Main {
     	}
     	return CommandType.MESSAGE;
     }
+
+
 	
 }

@@ -1,8 +1,9 @@
 package edu.michigan.eecs588;
 
-import edu.michigan.eecs588.encryption.AESCrypto;
-import edu.michigan.eecs588.encryption.ECMQVKeyPair;
-import edu.michigan.eecs588.encryption.RSAKeyPair;
+import edu.michigan.eecs588.Messenger.MMessage;
+import edu.michigan.eecs588.Messenger.MessageReceived;
+import edu.michigan.eecs588.Messenger.Messenger;
+import edu.michigan.eecs588.encryption.*;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
 import org.jivesoftware.smack.SmackException;
@@ -53,6 +54,46 @@ public class Client {
 	private boolean verificationSucceeds;
 	private AESCrypto rootKey;
 
+	private Messenger messenger;
+	
+	/* For testing purposes. */
+	private String privateKey = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC4eYiG8Atjnu6ePk3vZn7yZR7U" +
+								"Om9kY5hQtQYutLFYJoeZ5ivffhE+N/9xm0fp9xZ8FquRFaZGVcau3mjstyQL456oOgQ2BJ0h7lO3" +
+								"JN0khMd/LtXw8rrn/Im5EV+qoQpNWNv9W8f6+yTm7BanSwosMhiWF3ie/UKjqt+jngYKYFnhwqGD" +
+								"cDc3j+UB6RDerXDlQloTSoVSS3kNPZ3bhq377fEzHOuYntXT9/4H+OlnyfMmyQk95QT/m5h/B/Oh" +
+								"vI4/w9MkXt49TmuPLS7f6ihnQYJ8o6S2BThlbedbqLXheJVFIP0L1978ct4A3NWMCH7ClpVNm62c" +
+								"6FDJNZadajJxAgMBAAECggEASDYawWd5rddq5LrS2yGuE8iNltoA/LUXzI/wCZxlx3Hdptq41dWN" +
+								"fmOBNMFqFyXHwW9GXZax7dpp2c3qGK9gBt9lHckIGPUZZUzbrFdb0Y3AYgK9cIIzs9fhOXaZkjtT" +
+								"ww9DnhutXous2FAWVgpDwyUhBq/NYb8VtOeQf4W+K5T9QdU+jaOWGw/+LgmuNeOgMrx9Z9Uma+JN" +
+								"7E++o17P4EIdDE+J4yuHAlonZGRshzXGZ8lPM42YDm8htoB6dGSQryvRBrhx7IV2LY6/91pKUiGU" +
+								"0KiGfnMt7yhhyZ+6TXs/wLA30Z8xGZGrFkqxbGzUSYmoZPlijeYrIOw3P4K2eQKBgQDp5NldaGWy" +
+								"0LPn6d+u6EBT2o5kaS30t9Q8O8IhTe4RuwHTr+0yRFEEtH93mcCqDoJk4K7rh+ae+KKQyfQyv1F6" +
+								"ZUPZjIc0WQxyKh6r1mixk02EbR2Xu17h321iApLil7NUAmgwFBIeilImQ/T7DZOF04epyPz6Uf6M" +
+								"9ZBvNgo+cwKBgQDJ6PffEeYi8N4DD52lvnIpc7buk4OBU0TJMi6E9tbySAwiekye+lHTnm5t0Sci" +
+								"ZLt5ny1OQoeDYpFTz3rEP6bCyYK/RVJg2yShDQh4KLeiF6vVzZv5EkNiBA2QXVxv59yNrhh+ZSvt" +
+								"0o6FAV0Mk7/eBuN46dk92PddsPb/49AOiwKBgQDLOCmcPQ7PtQH7aHsPT4BE20qI99IUJHzk8M8V" +
+								"fM5y3VcTBHJFEJKMUf/GfPKnTwAAgi+5OVUpnsIwpyfjx9MVU1MGfFElLJHhx7LqftpsH55khyIF" +
+								"Kamg+y3g0HerJT+MqKK501aC7o+966G5V+xrhIUFAjq7i+5trxcVaZCw/QKBgBig3CtPiZzVeJ8y" +
+								"9m3TLyWzQasUP0Q1HfzUrCv31/wxoZlLBbGWowiHGL04d+eQFfYd3m7fWpxCF6v7cOQjR3oXDmW6" +
+								"VPQPhwZGCrRtcwjIjmND8zSMb7+y8tybJr1XsOVvSPmR6avWtR+wLONt2keA25pSG/eZUYMSJO7N" +
+								"oQFFAoGBAJ1zwzrRJp2uMbVM9V6cNe1EYGaMviKJzYadBbyA3a8JaKYBm2nctyBTGsm5yoZJd+6B" +
+								"NIe6GoVmp9u9GpQvdcL4QnG2JJ86NyqojUTh1XC5Mc903dRxPkcyydssxyE0dxldkKeo2mpvVBMq" +
+								"gDvVTQPycQJgFgwKiKocFzLApdY5" ;		
+			
+	private String publicKey = 	"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuHmIhvALY57unj5N72Z+8mUe1DpvZGOYU" +
+							 	"LUGLrSxWCaHmeYr334RPjf/cZtH6fcWfBarkRWmRlXGrt5o7LckC+OeqDoENgSdIe5TtyTdJITHfy" +
+							 	"7V8PK65/yJuRFfqqEKTVjb/VvH+vsk5uwWp0sKLDIYlhd4nv1Co6rfo54GCmBZ4cKhg3A3N4/lAek" +
+							 	"Q3q1w5UJaE0qFUkt5DT2d24at++3xMxzrmJ7V0/f+B/jpZ8nzJskJPeUE/5uYfwfzobyOP8PTJF7e" +
+							 	"PU5rjy0u3+ooZ0GCfKOktgU4ZW3nW6i14XiVRSD9C9fe/HLeANzVjAh+wpaVTZutnOhQyTWWnWoyc" +
+							 	"QIDAQAB"; 
+	
+	/* For testing purposes. */
+	Map<String, Verifier> publicKeys = new HashMap<String, Verifier>();
+	RSAKeyPair X = new RSAKeyPair(privateKey, publicKey);
+	Signer sign = new Signer(X.getPrivateKey());
+	
+	private String roomname;
+    
 	/**
 	 * Constructs the client.
 	 * @throws IOException
@@ -63,6 +104,11 @@ public class Client {
 		this.configFile = ConfigFileReader.getConfigValues();
 		this.connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
+		
+		/* For testing purposes. */
+		Verifier veri = new Verifier(X.getPublicKey());
+		publicKeys.put(configFile.get("username"), veri);
+		publicKeys.put("eugene", veri);
 		setupChatListener();
 
 		longTermKeyPair = new ECMQVKeyPair();
@@ -127,6 +173,14 @@ public class Client {
 		return connection;
 	}
 
+	public Map<String, String> getConfigFile() {
+		return configFile;
+	}
+	
+	public Messenger getMessenger() {
+		return messenger;
+	}
+    
     /**
      * Connects to the xmpp server.
      *
@@ -190,6 +244,7 @@ public class Client {
 		muc.sendConfigurationForm(submitForm);
 		this.muc = muc;
 		this.roomName = roomName;
+		this.messenger = this.createMessenger(publicKeys, sign);
     }
 
     /**
@@ -214,7 +269,8 @@ public class Client {
 				catch (NoResponseException | XMPPErrorException
 						| NotConnectedException e)
 				{
-					throw new RuntimeException(e);
+					Client.this.messenger = Client.this.createMessenger(publicKeys, sign);
+					System.out.println("Joined: " + muc.getRoom().toString());
 				}
 			}
 		});
@@ -236,6 +292,16 @@ public class Client {
     	return user + "@" + configFile.get("serviceName");
     }
 
+	private Messenger createMessenger(Map<String, Verifier> publicKeys, Signer sign) {
+		System.out.println("Hello! " + this.muc);
+		return new Messenger(this.getMultiUserChat(), new MessageReceived() {
+			@Override
+			public void onMessageReceived(MMessage message) {
+				System.out.println(message.getUsername() + ": " + message.getMessage());
+			}
+		}, publicKeys, sign, "2xil0x35oH8onjyLeudMlP+5h18r/HZ3drd3WXrqm9I=");
+	}
+    
     /**
      * Creates a private message chat.
      *
