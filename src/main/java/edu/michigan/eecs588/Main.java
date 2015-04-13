@@ -31,6 +31,7 @@ public class Main {
 		Map<String, Verifier> publicKeys = new HashMap<String, Verifier>();
 		Map<String, String> config = client.getConfigFile();
 		publicKeys.put(config.get("username"), veri);
+		publicKeys.put("d", veri);
 
 
 
