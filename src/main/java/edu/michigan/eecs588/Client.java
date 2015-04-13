@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
+import edu.michigan.eecs588.encryption.ECMQVKeyPair;
+import edu.michigan.eecs588.encryption.RSAKeyPair;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
 import org.jivesoftware.smack.SmackException;
@@ -15,7 +18,6 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.chat.Chat;
 import org.jivesoftware.smack.chat.ChatManager;
 import org.jivesoftware.smack.chat.ChatManagerListener;
-import org.jivesoftware.smack.chat.ChatMessageListener;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
@@ -36,7 +38,10 @@ public class Client {
 	private Map<String, String> configFile;
 	private MultiUserChat muc;
 	private AbstractXMPPConnection connection;
-	private String roomname;
+	private String roomName;
+	private ECMQVKeyPair longTermKeyPair;
+	private RSAKeyPair keyPair;
+	private final TreeMap<String, String> participants;
     
 	/**
 	 * Constructs the client.
@@ -49,6 +54,8 @@ public class Client {
 		this.connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
 		setupChatListener();
+		participants = new TreeMap<>();
+		longTermKeyPair = new ECMQVKeyPair();
 	}
 	
 	/**
@@ -64,22 +71,22 @@ public class Client {
 		this.connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
 		setupChatListener();
+		participants = new TreeMap<>();
+		longTermKeyPair = new ECMQVKeyPair();
 	}
 	
 	/**
 	 * Setup the chat listener for private messaging (pairwise).
 	 */
 	private void setupChatListener() {
-		ChatManager.getInstanceFor(connection).addChatListener(new ChatManagerListener() {
+		ChatManager.getInstanceFor(connection).addChatListener(new ChatManagerListener()
+		{
 			@Override
-			public void chatCreated(Chat chat, boolean createdLocally) {
-				if (!createdLocally) {
-					chat.addMessageListener(new ChatMessageListener() {
-						@Override
-						public void processMessage(Chat chat, Message msg) {
-							System.out.println("Received Message: " + msg.getBody());
-						}
-					});
+			public void chatCreated(Chat chat, boolean createdLocally)
+			{
+				if (!createdLocally)
+				{
+//					(new Thread(new PassiveAuthThread())).start();
 				}
 			}
 		});
@@ -112,7 +119,7 @@ public class Client {
 		AbstractXMPPConnection connection = new XMPPTCPConnection(config);
 		connection.connect();
 		connection.login(configFile.get("username"), configFile.get("password"));
-		setStatus(connection, true,"ONLINE");
+		setStatus(connection, true, "ONLINE");
 		System.out.println("Connected to XMPP server with " + username);
     	return connection;
     }
@@ -126,15 +133,14 @@ public class Client {
     
     /**
      * 
-     * @param connection
-     * @param roomName
+     * @param roomName Name of the room to be created
      * @throws XMPPErrorException 
      * @throws SmackException 
      */
-    public void createRoom(String roomname) throws XMPPErrorException, SmackException {
+    public void createRoom(String roomName) throws XMPPErrorException, SmackException {
     	MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
     	String multiChatService = configFile.get("multiUserChatService");
-		MultiUserChat muc = manager.getMultiUserChat(roomname + "@" + multiChatService);
+		MultiUserChat muc = manager.getMultiUserChat(roomName + "@" + multiChatService);
 		muc.create(configFile.get("username"));
 		System.out.println("Welcome to " + muc.getRoom());
 		System.out.println("Type your message and press Enter to send.");
@@ -156,7 +162,7 @@ public class Client {
 		// Send the completed form (with default values) to the server to configure the room
 		muc.sendConfigurationForm(submitForm);
 		this.muc = muc;
-		this.roomname = roomname;
+		this.roomName = roomName;
     }
     
     /**
@@ -165,17 +171,22 @@ public class Client {
      * @param connection the connection to add to
      */
     public void addInvitationListener(AbstractXMPPConnection connection) {
-    	MultiUserChatManager.getInstanceFor(connection).addInvitationListener(new InvitationListener() {
+    	MultiUserChatManager.getInstanceFor(connection).addInvitationListener(new InvitationListener()
+		{
 			@Override
 			public void invitationReceived(XMPPConnection connection, MultiUserChat muc,
-					String inviter, String reason, String password, Message message) {
-				try {
-					System.out.println("Received an invitation to join: " + muc.getRoom().toString());
+										   String inviter, String reason, String password, Message message)
+			{
+				try
+				{
+					System.out.println("Received an invitation to join: " + muc.getRoom());
 					muc.join(configFile.get("username"));
 					Client.this.muc = muc;
-					System.out.println("Joined: " + muc.getRoom().toString());
-				} catch (NoResponseException | XMPPErrorException
-						| NotConnectedException e) {
+					System.out.println("Joined: " + muc.getRoom());
+				}
+				catch (NoResponseException | XMPPErrorException
+						| NotConnectedException e)
+				{
 					throw new RuntimeException(e);
 				}
 			}
@@ -185,7 +196,6 @@ public class Client {
     /**
      * Invites a user.
      * 
-     * @param muc the multi-user chat object
      * @param user the user
      * @throws NotConnectedException if not connected
      */
@@ -207,14 +217,62 @@ public class Client {
      * @throws NotConnectedException
      */
     public Chat createPrivateChat(String user) throws NotConnectedException {
-    	String chatDestination = roomname + "@" + configFile.get("multiUserChatService") + "/" + user;
-    	Chat chat = this.muc.createPrivateChat(chatDestination, new ChatMessageListener() {
-			@Override
-			public void processMessage(Chat chat, Message msg) {
-				System.out.println("Received Message: " + msg.getBody());
-			}
-		});
-    	chat.sendMessage("Hello!");
-    	return chat;
+    	String chatDestination = roomName + "@" + configFile.get("multiUserChatService") + "/" + user;
+    	return muc.createPrivateChat(chatDestination, null);
     }
+
+	/**
+	 * Do the authentication phase.
+	 */
+	public void authenticate() throws AuthenticationFailtureException
+	{
+		keyPair = new RSAKeyPair();
+		List<String> occupants = muc.getOccupants();
+		int indexOfMe = occupants.indexOf(configFile.get("username"));
+		for (; indexOfMe < occupants.size() - 1; ++indexOfMe)
+		{
+			try
+			{
+				(new Thread(new ActiveAuthThread(Client.this, occupants.get(indexOfMe), longTermKeyPair, keyPair))).start();
+			}
+			catch (NotConnectedException e)
+			{
+				throw new RuntimeException(e);
+			}
+		}
+
+		synchronized (participants)
+		{
+			try
+			{
+				participants.wait();
+			}
+			catch (InterruptedException e)
+			{
+				e.printStackTrace();
+			}
+		}
+
+
+		for (Map.Entry<String, String> keyValue : participants.entrySet())
+		{
+		}
+	}
+
+	/**
+	 * Called when the pairwise authentication is done.
+	 * @param anotherUser The user which this client does pairwise authentication with
+	 * @param publicKey The public key of the user. Null if authentication fails.
+	 */
+	public void authDone(String anotherUser, String publicKey)
+	{
+		synchronized (participants)
+		{
+			participants.put(anotherUser, publicKey);
+			if (participants.size() == muc.getOccupantsCount())
+			{
+				participants.notify();
+			}
+		}
+	}
 }
