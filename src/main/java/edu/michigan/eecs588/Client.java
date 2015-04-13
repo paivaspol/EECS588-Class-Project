@@ -6,6 +6,11 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.Map;
 
+import edu.michigan.eecs588.Messenger.MMessage;
+import edu.michigan.eecs588.Messenger.MessageReceived;
+import edu.michigan.eecs588.Messenger.Messenger;
+import edu.michigan.eecs588.encryption.Signer;
+import edu.michigan.eecs588.encryption.Verifier;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
 import org.jivesoftware.smack.SmackException;
@@ -162,4 +167,13 @@ public class Client {
     private String generateUsername(String user) {
     	return user + "@" + configFile.get("serviceName");
     }
+
+	public Messenger createMessenger(Map<String, Verifier> publicKeys, Signer sign) {
+		return new Messenger(this.getMultiUserChat(), new MessageReceived() {
+			@Override
+			public void onMessageReceived(MMessage message) {
+				System.out.println(message.getUsername() + ": " + message.getMessage());
+			}
+		}, publicKeys, sign, "2xil0x35oH8onjyLeudMlP+5h18r/HZ3drd3WXrqm9I=");
+	}
 }

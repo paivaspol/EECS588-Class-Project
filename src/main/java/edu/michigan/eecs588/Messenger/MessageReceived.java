@@ -1,10 +1,10 @@
 package edu.michigan.eecs588.Messenger;
 
-import org.jivesoftware.smack.packet.Message;
+import edu.michigan.eecs588.Messenger.MMessage;
 
 /**
  * Created by sysofwan on 4/12/15.
  */
 public interface MessageReceived {
-    void onMessageReceived(Message message);
+    void onMessageReceived(MMessage message);
 }

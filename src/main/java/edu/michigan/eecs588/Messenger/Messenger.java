@@ -6,6 +6,7 @@ import edu.michigan.eecs588.encryption.Verifier;
 import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.packet.Message;
+import edu.michigan.eecs588.Messenger.MMessage;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jxmpp.util.XmppStringUtils;
 
@@ -71,14 +72,13 @@ public class Messenger {
                 String dcryptMsgStr = decrypto.decrypt(encryptedMessage);
 //                System.out.println(dcryptMsgStr);
                 String sign = getSignature(dcryptMsgStr);
+//                System.out.println("sign: " +  sign);
                 String messageNoSign = getMessage(dcryptMsgStr);
                 Verifier senderVerf = Messenger.this.publicKeys.get(XmppStringUtils.parseResource(message.getFrom()));
-                if (dcryptMsgStr != null && senderVerf != null && senderVerf.verify(messageNoSign, sign)) {
-//                    System.out.println("hi!!asdasd========");
-                    System.out.println(messageNoSign);
-                    message.setBody(messageNoSign);
-                    // count for next message
-                    cb.onMessageReceived(message);
+                if (sign != null && dcryptMsgStr != null && senderVerf != null && messageNoSign != null &&
+                        senderVerf.verify(messageNoSign, sign)) {
+                    MMessage m = new MMessage(messageNoSign, message.getFrom());
+                    cb.onMessageReceived(m);
                     rollGlobalKey();
                 }
 
@@ -86,13 +86,15 @@ public class Messenger {
         });
     }
 
-    public void sendMessage(String message) throws SmackException.NotConnectedException{
-        String sign = userSigner.sign(message);
-        String signedMessage = sign + "," + message;
-        String encrypted = encrypto.encrypt(signedMessage);
-        localSentMessages.put(encrypted, new SentMsgInfo(message, currentLocalCount));
-        muc.sendMessage(encrypted);
-        rollLocalKey();
+    public void sendMessage(String message) throws SmackException.NotConnectedException {
+        if (message != null && message != "") {
+            String sign = userSigner.sign(message);
+            String signedMessage = sign + "," + message;
+            String encrypted = encrypto.encrypt(signedMessage);
+            localSentMessages.put(encrypted, new SentMsgInfo(message, currentLocalCount));
+            muc.sendMessage(encrypted);
+            rollLocalKey();
+        }
     }
 
     private void rollLocalKey() {
@@ -123,7 +125,7 @@ public class Messenger {
 
     private String getMessage(String message) {
         String[] sign = message.split(",");
-        return sign.length > 1 ? sign[1] : "";
+        return sign.length > 1 ? sign[1] : null;
     }
 
 }

@@ -35,6 +35,9 @@ public class Main {
 
 
 		String prompt = "eecs588";
+
+		Messenger m = null;
+
 		while (true) {
 			System.out.print(prompt + "> ");
 			input = in.nextLine();
@@ -44,16 +47,11 @@ public class Main {
 				client.createRoom(splitted[1]);
 				MultiUserChat muc = client.getMultiUserChat();
 				prompt = muc.getRoom().toString();
+				m = client.createMessenger(publicKeys, sign);
 			} else if (commandType.equals(CommandType.INVITE)) {
 				String[] splitted = input.split(" ");
 				client.inviteParticipant(splitted[1]);
-			} else {
-				Messenger m = new Messenger(client.getMultiUserChat(), new MessageReceived() {
-					@Override
-					public void onMessageReceived(Message message) {
-						System.out.println(XmppStringUtils.parseResource(message.getFrom()) + " says: " + message.getBody());
-					}
-				}, publicKeys, sign, "2xil0x35oH8onjyLeudMlP+5h18r/HZ3drd3WXrqm9I=");
+			} else if (m != null) {
 				m.sendMessage(input);
 			}
 		}
@@ -67,5 +65,7 @@ public class Main {
     	}
     	return CommandType.MESSAGE;
     }
+
+
 	
 }
