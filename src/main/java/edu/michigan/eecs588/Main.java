@@ -25,20 +25,9 @@ public class Main {
 		Client client = new Client();
 		Scanner in = new Scanner(System.in);
 		String input = "";
-		RSAKeyPair X = new RSAKeyPair();
-		Signer sign = new Signer(X.getPrivateKey());
-		Verifier veri = new Verifier(X.getPublicKey());
-		Map<String, Verifier> publicKeys = new HashMap<String, Verifier>();
-		Map<String, String> config = client.getConfigFile();
-		publicKeys.put(config.get("username"), veri);
-		publicKeys.put("d", veri);
-
-
-
 		String prompt = "eecs588";
 
 		Messenger m = null;
-
 		while (true) {
 			System.out.print(prompt + "> ");
 			input = in.nextLine();
@@ -48,11 +37,12 @@ public class Main {
 				client.createRoom(splitted[1]);
 				MultiUserChat muc = client.getMultiUserChat();
 				prompt = muc.getRoom().toString();
-				m = client.createMessenger(publicKeys, sign);
+				m = client.getMessenger();
 			} else if (commandType.equals(CommandType.INVITE)) {
 				String[] splitted = input.split(" ");
 				client.inviteParticipant(splitted[1]);
 			} else if (m != null) {
+				m = client.getMessenger();
 				m.sendMessage(input);
 			}
 		}

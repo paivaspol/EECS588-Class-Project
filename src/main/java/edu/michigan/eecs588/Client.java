@@ -2,6 +2,7 @@ package edu.michigan.eecs588;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Map;
@@ -9,8 +10,10 @@ import java.util.Map;
 import edu.michigan.eecs588.Messenger.MMessage;
 import edu.michigan.eecs588.Messenger.MessageReceived;
 import edu.michigan.eecs588.Messenger.Messenger;
+import edu.michigan.eecs588.encryption.RSAKeyPair;
 import edu.michigan.eecs588.encryption.Signer;
 import edu.michigan.eecs588.encryption.Verifier;
+
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
 import org.jivesoftware.smack.SmackException;
@@ -38,6 +41,12 @@ public class Client {
 	private Map<String, String> configFile;
 	private MultiUserChat muc;
 	private AbstractXMPPConnection connection;
+	private Messenger messenger;
+	
+	/* For testing purposes. */
+	Map<String, Verifier> publicKeys = new HashMap<String, Verifier>();
+	RSAKeyPair X = new RSAKeyPair();
+	Signer sign = new Signer(X.getPrivateKey());
     
 	/**
 	 * Constructs the client.
@@ -49,6 +58,11 @@ public class Client {
 		this.configFile = ConfigFileReader.getConfigValues();
 		this.connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
+		
+		/* For testing purposes. */
+		Verifier veri = new Verifier(X.getPublicKey());
+		publicKeys.put(configFile.get("username"), veri);
+		publicKeys.put("d", veri);
 	}
 	
 	public MultiUserChat getMultiUserChat() {
@@ -61,6 +75,10 @@ public class Client {
 
 	public Map<String, String> getConfigFile() {
 		return configFile;
+	}
+	
+	public Messenger getMessenger() {
+		return messenger;
 	}
     
     /**
@@ -126,6 +144,7 @@ public class Client {
 		// Send the completed form (with default values) to the server to configure the room
 		muc.sendConfigurationForm(submitForm);
 		this.muc = muc;
+		this.messenger = this.createMessenger(publicKeys, sign);
     }
     
     /**
@@ -142,6 +161,7 @@ public class Client {
 					System.out.println("Received an invitation to join: " + muc.getRoom().toString());
 					muc.join(configFile.get("username"));
 					Client.this.muc = muc;
+					Client.this.messenger = Client.this.createMessenger(publicKeys, sign);
 					System.out.println("Joined: " + muc.getRoom().toString());
 				} catch (NoResponseException | XMPPErrorException
 						| NotConnectedException e) {
@@ -168,7 +188,8 @@ public class Client {
     	return user + "@" + configFile.get("serviceName");
     }
 
-	public Messenger createMessenger(Map<String, Verifier> publicKeys, Signer sign) {
+	private Messenger createMessenger(Map<String, Verifier> publicKeys, Signer sign) {
+		System.out.println("Hello! " + this.muc);
 		return new Messenger(this.getMultiUserChat(), new MessageReceived() {
 			@Override
 			public void onMessageReceived(MMessage message) {

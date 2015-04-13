@@ -52,6 +52,7 @@ public class Messenger {
         this.muc.addMessageListener(new MessageListener() {
             @Override
             public void processMessage(Message message) {
+            	System.out.println("sup?");
                 String encryptedMessage = message.getBody();
                 // if it is our message
                 if (localSentMessages.containsKey(encryptedMessage)) {
