@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Scanner;
 import java.util.Map;
 
 import edu.michigan.eecs588.Messenger.MMessage;
@@ -21,6 +20,10 @@ import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.chat.Chat;
+import org.jivesoftware.smack.chat.ChatManager;
+import org.jivesoftware.smack.chat.ChatManagerListener;
+import org.jivesoftware.smack.chat.ChatMessageListener;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
@@ -78,6 +81,8 @@ public class Client {
 	Map<String, Verifier> publicKeys = new HashMap<String, Verifier>();
 	RSAKeyPair X = new RSAKeyPair(privateKey, publicKey);
 	Signer sign = new Signer(X.getPrivateKey());
+	
+	private String roomname;
     
 	/**
 	 * Constructs the client.
@@ -94,6 +99,41 @@ public class Client {
 		Verifier veri = new Verifier(X.getPublicKey());
 		publicKeys.put(configFile.get("username"), veri);
 		publicKeys.put("eugene", veri);
+		setupChatListener();
+	}
+	
+	/**
+	 * Constructs the client.
+	 * 
+	 * @param configFilename the config file name
+	 * @throws IOException
+	 * @throws SmackException
+	 * @throws XMPPException
+	 */
+	public Client(String configFilename) throws IOException, SmackException, XMPPException {
+		this.configFile = ConfigFileReader.getConfigValues(configFilename);
+		this.connection = createConnectionAndLogin(configFile);
+		addInvitationListener(connection);
+		setupChatListener();
+	}
+	
+	/**
+	 * Setup the chat listener for private messaging (pairwise).
+	 */
+	private void setupChatListener() {
+		ChatManager.getInstanceFor(connection).addChatListener(new ChatManagerListener() {
+			@Override
+			public void chatCreated(Chat chat, boolean createdLocally) {
+				if (!createdLocally) {
+					chat.addMessageListener(new ChatMessageListener() {
+						@Override
+						public void processMessage(Chat chat, Message msg) {
+							System.out.println("Received Message: " + msg.getBody());
+						}
+					});
+				}
+			}
+		});
 	}
 	
 	public MultiUserChat getMultiUserChat() {
@@ -176,6 +216,7 @@ public class Client {
 		muc.sendConfigurationForm(submitForm);
 		this.muc = muc;
 		this.messenger = this.createMessenger(publicKeys, sign);
+		this.roomname = roomname;
     }
     
     /**
@@ -228,4 +269,23 @@ public class Client {
 			}
 		}, publicKeys, sign, "2xil0x35oH8onjyLeudMlP+5h18r/HZ3drd3WXrqm9I=");
 	}
+    
+    /**
+     * Creates a private message chat.
+     * 
+     * @param user the user to chat with
+     * @return the chat
+     * @throws NotConnectedException
+     */
+    public Chat createPrivateChat(String user) throws NotConnectedException {
+    	String chatDestination = roomname + "@" + configFile.get("multiUserChatService") + "/" + user;
+    	Chat chat = this.muc.createPrivateChat(chatDestination, new ChatMessageListener() {
+			@Override
+			public void processMessage(Chat chat, Message msg) {
+				System.out.println("Received Message: " + msg.getBody());
+			}
+		});
+    	chat.sendMessage("Hello!");
+    	return chat;
+    }
 }

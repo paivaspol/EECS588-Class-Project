@@ -14,8 +14,12 @@ import java.util.Properties;
 public class ConfigFileReader {
 	
 	public static Map<String, String> getConfigValues() throws IOException {
+		return getConfigValues("smack.properties");
+	}
+	
+	public static Map<String, String> getConfigValues(String filename) throws IOException {
 		Properties properties = new Properties();
-		String filename = "smack.properties";
+		
 		InputStream inputStream = new FileInputStream(filename);
 		properties.load(inputStream);
 		Map<String, String> retval = new HashMap<String, String>();
