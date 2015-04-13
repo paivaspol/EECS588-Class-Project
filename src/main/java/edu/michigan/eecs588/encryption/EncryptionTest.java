@@ -25,6 +25,10 @@ public class EncryptionTest
         System.out.println("Secret: \n" + crypto.getSecret());
 
         RSAKeyPair keyPair = new RSAKeyPair();
+
+        System.out.println("Private key is:\n" + keyPair.getPrivateKeyAsString() + "\n");
+        System.out.println("Public key is:\n" + keyPair.getPublicKeyAsString() + "\n");
+
         Signer signer1 = new Signer(keyPair.getPrivateKey());
         Verifier verifier1 = new Verifier(keyPair.getPublicKey());
 
