@@ -30,6 +30,7 @@ public class ActiveAuthThread implements Runnable
         this.anotherUser = chat.getParticipant();
         this.chat = chat;
         this.keyPair = keyPair;
+        client.getPrinter().println(keyPair);
     }
 
     @Override
@@ -103,6 +104,10 @@ public class ActiveAuthThread implements Runnable
             client.getPrinter().println("MQV Public key received.");
             AESCrypto crypto = agreement.doSecondPhase(message);
             client.getPrinter().println("============MQV ends============\n");
+            if (crypto == null)
+            {
+                client.getPrinter().println("Crypto is null!!!!!!!!!!!!!!!!!");
+            }
             return crypto;
 
         }

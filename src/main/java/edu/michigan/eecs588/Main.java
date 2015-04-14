@@ -77,7 +77,4 @@ public class Main {
 		}
     	return CommandType.MESSAGE;
     }
-
-
-	
 }

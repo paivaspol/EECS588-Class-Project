@@ -115,6 +115,7 @@ public class Client {
 		setupChatListener();
 
 		longTermKeyPair = new ECMQVKeyPair();
+		keyPair = new RSAKeyPair();
 		participants = new TreeMap<>();
 		privateChats = new TreeMap<>();
 		LOCK = new Object();
@@ -142,8 +143,12 @@ public class Client {
 		Verifier veri = new Verifier(X.getPublicKey());
 		publicKeys.put("admin", veri);
 		publicKeys.put("jiamin", veri);
+		publicKeys.put("vaspol", veri);
+		publicKeys.put("eugene", veri);
+		publicKeys.put("sayyid", veri);
 
 		longTermKeyPair = new ECMQVKeyPair();
+		keyPair = new RSAKeyPair();
 		participants = new TreeMap<>();
 		privateChats = new TreeMap<>();
 		LOCK = new Object();
@@ -430,7 +435,6 @@ public class Client {
 
 	private void exchangePublicKeys(List<String> occupants)
 	{
-		keyPair = new RSAKeyPair();
 		String meInChatRoom = getUsername();
 		int indexOfUser = occupants.indexOf(meInChatRoom) + 1;
 
