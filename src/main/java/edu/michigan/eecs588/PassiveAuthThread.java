@@ -15,9 +15,10 @@ public class PassiveAuthThread implements Runnable
     private Client client;
     private ECMQVKeyPair longTermKeyPair;
     private String anotherUser;
-    private Chat chat;
+    private PrivateChat chat;
     private RSAKeyPair keyPair;
-    private String reply;
+//    private String reply;
+//    private final Object LOCK;
 
     /**
      * @param client The current chat client
@@ -26,24 +27,28 @@ public class PassiveAuthThread implements Runnable
      * @param keyPair The group specific key pair
      * @throws SmackException.NotConnectedException
      */
-    public PassiveAuthThread(Client client, String anotherUser, ECMQVKeyPair longTermKeyPair, RSAKeyPair keyPair)
+    public PassiveAuthThread(Client client, PrivateChat chat, String anotherUser, ECMQVKeyPair longTermKeyPair, RSAKeyPair keyPair)
             throws SmackException.NotConnectedException
     {
         this.client = client;
         this.longTermKeyPair = longTermKeyPair;
         this.anotherUser = anotherUser;
-        chat = client.createPrivateChat(anotherUser);
+        this.chat = chat;
         this.keyPair = keyPair;
-        reply = null;
-        chat.addMessageListener(new ChatMessageListener()
-        {
-            @Override
-            public void processMessage(Chat chat, Message message)
-            {
-                reply = message.getBody();
-                PassiveAuthThread.this.notify();
-            }
-        });
+//        reply = null;
+//        LOCK = new Object();
+//        chat.addMessageListener(new ChatMessageListener()
+//        {
+//            @Override
+//            public void processMessage(Chat chat, Message message)
+//            {
+//                synchronized (LOCK)
+//                {
+//                    reply = message.getBody();
+//                    LOCK.notify();
+//                }
+//            }
+//        });
     }
 
     @Override
@@ -52,18 +57,18 @@ public class PassiveAuthThread implements Runnable
         try
         {
             AESCrypto crypto = deriveMQVKey(longTermKeyPair);
-            System.out.println("Waiting for public key of another thread...");
-            String publicKeyForThatUser = waitForReply();
-            System.out.println("Public key received. Sending my public key...");
+            client.getPrinter().println("Waiting for public key of another thread...");
+            String publicKeyForThatUser = crypto.decrypt(waitForReply());
+            client.getPrinter().println("Public key received. Sending my public key...");
             chat.sendMessage(crypto.encrypt(keyPair.getPublicKeyAsString()));
-            System.out.println("Public key sent.");
+            client.getPrinter().println("Public key sent.");
             Signer signer = new Signer(keyPair.getPrivateKey());
             String verificationMessage = crypto.encrypt(signer.sign(publicKeyForThatUser) + "," + publicKeyForThatUser);
-            System.out.println("Waiting for his signature...");
+            client.getPrinter().println("Waiting for his signature...");
             String verificationMessageOfThatUser = waitForReply();
-            System.out.println("Signature received. Sending my signature...");
+            client.getPrinter().println("Signature received. Sending my signature...");
             chat.sendMessage(verificationMessage);
-            System.out.println("Signature sent.");
+            client.getPrinter().println("Signature sent.");
             Verifier verifier = new Verifier(publicKeyForThatUser);
             String[] decryptedData = crypto.decrypt(verificationMessageOfThatUser).split(",");
             if (verifier.verify(decryptedData[1], decryptedData[0]))
@@ -93,11 +98,11 @@ public class PassiveAuthThread implements Runnable
 
         try
         {
-            System.out.println("Waiting for MQV reply from the other thread...");
+            client.getPrinter().println("Waiting for MQV reply from the other thread...");
             AESCrypto crypto = agreement.doSecondPhase(waitForReply());
-            System.out.println("MQV done. Sending MQV reply to the other thread...");
+            client.getPrinter().println("MQV done. Sending MQV reply to the other thread...");
             chat.sendMessage(MQVPublicKey);
-            System.out.println("MQV reply sent.");
+            client.getPrinter().println("MQV reply sent.");
             return crypto;
 
         }
@@ -109,22 +114,23 @@ public class PassiveAuthThread implements Runnable
 
     private String waitForReply()
     {
-        while (reply == null)
-        {
-            synchronized (this)
-            {
-                try
-                {
-                    this.wait();
-                }
-                catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-            }
-        }
-        String message = reply;
-        reply = null;
-        return message;
+        return chat.nextMessage();
+//        while (reply == null)
+//        {
+//            synchronized (LOCK)
+//            {
+//                try
+//                {
+//                    LOCK.wait();
+//                }
+//                catch (InterruptedException e)
+//                {
+//                    e.printStackTrace();
+//                }
+//            }
+//        }
+//        String message = reply;
+//        reply = null;
+//        return message;
     }
 }

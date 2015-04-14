@@ -49,11 +49,13 @@ public class Client {
 	private RSAKeyPair keyPair;
 	private final TreeMap<String, String> participants;
 	private final Map<String, AESCrypto> cryptoes;
-	private final TreeMap<String, Chat> privateChats;
+	private final TreeMap<String, PrivateChat> privateChats;
 	private int verificationCount;
 	private boolean verificationSucceeds;
 	private AESCrypto rootKey;
 	private boolean isInitiator;
+	private Printer printer;
+	private boolean setupWillStart;
 
 	private Messenger messenger;
 	
@@ -92,9 +94,7 @@ public class Client {
 	Map<String, Verifier> publicKeys = new HashMap<String, Verifier>();
 	RSAKeyPair X = new RSAKeyPair(privateKey, publicKey);
 	Signer sign = new Signer(X.getPrivateKey());
-	
-	private String roomname;
-    
+
 	/**
 	 * Constructs the client.
 	 * @throws IOException
@@ -118,6 +118,8 @@ public class Client {
 		privateChats = new TreeMap<>();
 		LOCK = new Object();
 		isInitiator = false;
+		printer = new Printer(this);
+		setupWillStart = false;
 	}
 
 	/**
@@ -138,7 +140,6 @@ public class Client {
 		Verifier veri = new Verifier(X.getPublicKey());
 		publicKeys.put("admin", veri);
 		publicKeys.put("jiamin", veri);
-		setupChatListener();
 
 		longTermKeyPair = new ECMQVKeyPair();
 		participants = new TreeMap<>();
@@ -146,12 +147,46 @@ public class Client {
 		privateChats = new TreeMap<>();
 		LOCK = new Object();
 		isInitiator = false;
+		printer = new Printer(this);
+		setupWillStart = false;
+	}
+
+	public String getRoomName()
+	{
+		return roomName;
+	}
+
+	public Printer getPrinter()
+	{
+		return printer;
 	}
 
 	/**
 	 * Setup the chat listener for private messaging (pairwise).
 	 */
 	private void setupChatListener() {
+		listener = new ChatManagerListener()
+		{
+			@Override
+			public void chatCreated(Chat chat, boolean createdLocally)
+			{
+				if (!createdLocally && setupWillStart)
+				{
+					try
+					{
+						PrivateChat privateChat = new PrivateChat(chat);
+						printer.println(chat);
+						privateChats.put(chat.getParticipant(), privateChat);
+						(new Thread(new ActiveAuthThread(Client.this, privateChat, chat.getParticipant(), longTermKeyPair, keyPair))).start();
+					}
+					catch (NotConnectedException e)
+					{
+						throw new RuntimeException(e);
+					}
+				}
+			}
+		};
+		ChatManager.getInstanceFor(Client.this.connection).addChatListener(listener);
 	}
 
 	public MultiUserChat getMultiUserChat() {
@@ -190,6 +225,7 @@ public class Client {
 		connection.connect();
 		connection.login(configFile.get("username"), configFile.get("password"));
 		setStatus(connection, true, "ONLINE");
+		roomName = "EECS588";
 		System.out.println("Connected to XMPP server with " + username);
     	return connection;
     }
@@ -212,8 +248,8 @@ public class Client {
     	String multiChatService = configFile.get("multiUserChatService");
 		MultiUserChat muc = manager.getMultiUserChat(roomName + "@" + multiChatService);
 		muc.create(configFile.get("username"));
-		System.out.println("Welcome to " + muc.getRoom());
-		System.out.println("Type your message and press Enter to send.");
+		printer.println("Welcome to " + muc.getRoom());
+		printer.println("Type your message and press Enter to send.");
 		// Get the the room's configuration form
 		Form form = muc.getConfigurationForm();
 		// Create a new form to submit based on the original form
@@ -239,10 +275,10 @@ public class Client {
     /**
      * Adds an invitation listener to the connection
      *
-     * @param connection the connection to add to
+     * @param xmppConnection the connection to add to
      */
-    public void addInvitationListener(AbstractXMPPConnection connection) {
-    	MultiUserChatManager.getInstanceFor(connection).addInvitationListener(new InvitationListener()
+    public void addInvitationListener(AbstractXMPPConnection xmppConnection) {
+    	MultiUserChatManager.getInstanceFor(xmppConnection).addInvitationListener(new InvitationListener()
 		{
 			@Override
 			public void invitationReceived(XMPPConnection connection, MultiUserChat muc,
@@ -250,12 +286,13 @@ public class Client {
 			{
 				try
 				{
-					System.out.println("Received an invitation to join: " + muc.getRoom());
+					printer.println("Received an invitation to join: " + muc.getRoom());
 					muc.join(configFile.get("username"));
 					Client.this.muc = muc;
 					Client.this.roomName = muc.getRoom();
 					Client.this.messenger = Client.this.createMessenger(publicKeys, sign);
-					System.out.println("Joined: " + muc.getRoom());
+					printer.println("Joined: " + muc.getRoom());
+					setupWillStart = true;
 				}
 				catch (NoResponseException | XMPPErrorException
 						| NotConnectedException e)
@@ -274,8 +311,9 @@ public class Client {
      */
     public void inviteParticipant(String user) throws NotConnectedException {
 		isInitiator = true;
+		setupWillStart = true;
     	String username = this.generateUsername(user);
-    	System.out.println("Inviting " + user);
+    	printer.println("Inviting " + user);
     	muc.invite(username, "I love you");
     }
 
@@ -284,7 +322,7 @@ public class Client {
     }
 
 	private Messenger createMessenger(Map<String, Verifier> publicKeys, Signer sign) {
-		System.out.println("Hello! " + this.muc);
+		printer.println("Hello! " + this.muc);
 		return new Messenger(this.getMultiUserChat(), new MessageReceived() {
 			@Override
 			public void onMessageReceived(MMessage message) {
@@ -299,13 +337,13 @@ public class Client {
 						}
 						catch (AuthenticationFailureException e)
 						{
-							System.out.println("Authentication failed.");
+							printer.println("Authentication failed.");
 						}
 					}
 				}
 				else
 				{
-					System.out.println(message.getUsername() + ": " + messageBody);
+					printer.println(message.getUsername() + ": " + messageBody);
 				}
 			}
 		}, publicKeys, sign, "2xil0x35oH8onjyLeudMlP+5h18r/HZ3drd3WXrqm9I=");
@@ -318,9 +356,8 @@ public class Client {
      * @return the chat
      * @throws NotConnectedException
      */
-    public Chat createPrivateChat(String user) throws NotConnectedException {
-    	String chatDestination = roomName + "/" + user;
-    	return muc.createPrivateChat(chatDestination, null);
+    public Chat createPrivateChat(String user) throws NotConnectedException {;
+    	return muc.createPrivateChat(user, null);
     }
 
 	/**
@@ -335,7 +372,7 @@ public class Client {
 		}
 		catch (AuthenticationFailureException e)
 		{
-			System.out.println("Authentication failed");
+			printer.println("Authentication failed");
 		}
 	}
 
@@ -346,49 +383,28 @@ public class Client {
 	{
 		List<String> occupants = new ArrayList<>(muc.getOccupants());
 		Collections.sort(occupants);
-		listener = new ChatManagerListener()
-		{
-			@Override
-			public void chatCreated(Chat chat, boolean createdLocally)
-			{
-				if (!createdLocally)
-				{
-					try
-					{
-						System.out.println("Chat created.");
-						privateChats.put(chat.getParticipant(), chat);
-						(new Thread(new PassiveAuthThread(Client.this, chat.getParticipant(), longTermKeyPair, keyPair))).start();
-					}
-					catch (NotConnectedException e)
-					{
-						throw new RuntimeException(e);
-					}
-				}
-			}
-		};
-		ChatManager.getInstanceFor(connection).addChatListener(listener);
 
 		try
 		{
 
 			/* Step 1: exchange public keys with all other participants */
-			System.out.println("Exchanging public keys with the other participants...");
+			printer.println("Exchanging public keys with the other participants...");
 			exchangePublicKeys(occupants);
 
 			/* Step 2: verify that all participants have the same view of the public keys */
-			System.out.println("Verifying public keys...");
+			printer.println("Verifying public keys...");
 			verifyPublicKeys();
 
 			/* Step 3: the first participant(in alphabetic order) generates the root key
 			*          and sends it to all other participants */
-			System.out.println("Generating root key...");
+			printer.println("Generating root key...");
 			sendOrReceiveRootKey();
 
 			/* Step 4: verify that all participants have the same root key */
-			System.out.println("Verifying root key...");
+			printer.println("Verifying root key...");
 			verifyRootKey();
 
-			for (Map.Entry<String, Chat> privateChat : privateChats.entrySet())
+			for (Map.Entry<String, PrivateChat> privateChat : privateChats.entrySet())
 			{
 				privateChat.getValue().close();
 			}
@@ -415,9 +431,9 @@ public class Client {
 			try
 			{
 				String user = occupants.get(indexOfUser);
-				System.out.println(meInChatRoom + " is creating private chat with " + user);
-				Chat chat = createPrivateChat(user);
-				System.out.println("Private chat created successfully.");
+				printer.println("Creating private chat with " + user);
+				PrivateChat chat = new PrivateChat(muc, user);
+				printer.println("Private chat created successfully.\n" + chat);
 				privateChats.put(user, chat);
 				(new Thread(new ActiveAuthThread(Client.this, chat, user, longTermKeyPair, keyPair))).start();
 			}
@@ -431,6 +447,7 @@ public class Client {
 		{
 			try
 			{
+				printer.println("Start waiting...");
 				LOCK.wait();
 			}
 			catch (InterruptedException e)
@@ -472,33 +489,15 @@ public class Client {
 		{
 			// I am the first user. Generate a root key and send to the others
 			rootKey = new AESCrypto();
-			for (Map.Entry<String, Chat> privateChat : privateChats.entrySet())
+			for (Map.Entry<String, PrivateChat> privateChat : privateChats.entrySet())
 			{
 				privateChat.getValue().sendMessage(rootKey.getSecret());
 			}
 		}
 		else
 		{
-			Chat chatWithFirstParticipant = privateChats.firstEntry().getValue();
-			final ChatMessageListener listener = new ChatMessageListener()
-			{
-				@Override
-				public void processMessage(Chat chat, Message message)
-				{
-					rootKey = new AESCrypto(message.getBody());
-
-					synchronized (LOCK)
-					{
-						LOCK.notify();
-					}
-				}
-			};
-			chatWithFirstParticipant.addMessageListener(listener);
-			synchronized (LOCK)
-			{
-				LOCK.wait();
-				chatWithFirstParticipant.removeMessageListener(listener);
-			}
+			PrivateChat chatWithFirstParticipant = privateChats.firstEntry().getValue();
+			rootKey = new AESCrypto(chatWithFirstParticipant.nextMessage());
 		}
 	}
 
@@ -514,12 +513,12 @@ public class Client {
 		verificationCount = 0;
 		verificationSucceeds = true;
 
-		for (Map.Entry<String, Chat> privateChat : privateChats.entrySet())
+		for (Map.Entry<String, PrivateChat> privateChat : privateChats.entrySet())
 		{
 			try
 			{
 				String user = privateChat.getKey();
-				Chat chat = privateChat.getValue();
+				PrivateChat chat = privateChat.getValue();
 				(new Thread(new GroupVerificationThread(Client.this, chat, hash, cryptoes.get(user)))).start();
 			}
 			catch (NotConnectedException e)

@@ -13,11 +13,10 @@ import org.jivesoftware.smack.packet.Message;
 public class GroupVerificationThread implements Runnable
 {
     private Client client;
-    private Chat chat;
+    private PrivateChat chat;
     private String messageForVerification;
-    private ChatMessageListener listener;
 
-    public GroupVerificationThread(Client client, Chat chat, String hashForVerification, AESCrypto crypto) throws SmackException.NotConnectedException
+    public GroupVerificationThread(Client client, PrivateChat chat, String hashForVerification, AESCrypto crypto) throws SmackException.NotConnectedException
     {
         this.client = client;
         this.chat = chat;
@@ -29,18 +28,8 @@ public class GroupVerificationThread implements Runnable
     {
         try
         {
-            listener = new ChatMessageListener()
-            {
-                @Override
-                public void processMessage(Chat chat, Message message)
-                {
-                    String reply = message.getBody();
-                    client.verify(messageForVerification.equals(reply));
-                    chat.removeMessageListener(listener);
-                }
-            };
-            chat.addMessageListener(listener);
             chat.sendMessage(messageForVerification);
+            client.verify(messageForVerification.equals(chat.nextMessage()));
         }
         catch (SmackException.NotConnectedException e)
         {

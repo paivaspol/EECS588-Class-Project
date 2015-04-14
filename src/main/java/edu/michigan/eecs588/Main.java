@@ -27,11 +27,10 @@ public class Main {
 		Client client = new Client("smack.properties");
 		Scanner in = new Scanner(System.in);
 		String input;
-		String prompt = "eecs588";
 
 		Messenger m;
 		while (true) {
-			System.out.print(prompt + "> ");
+			client.getPrinter().print();
 			input = in.nextLine();
 			CommandType commandType = parseInput(input);
 			String[] splitted;
@@ -41,7 +40,6 @@ public class Main {
 					splitted = input.split(" ");
 					client.createRoom(splitted[1]);
 					MultiUserChat muc = client.getMultiUserChat();
-					prompt = muc.getRoom();
 					break;
 
 				case INVITE:

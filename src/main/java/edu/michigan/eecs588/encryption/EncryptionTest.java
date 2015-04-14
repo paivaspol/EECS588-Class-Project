@@ -1,8 +1,17 @@
 package edu.michigan.eecs588.encryption;
 
+import org.jivesoftware.smack.util.stringencoder.java7.Base64;
+
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+
 public class EncryptionTest
 {
-    public static void main(String[] args)
+    public static void main(String[] args) throws NoSuchProviderException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         AESCrypto crypto = new AESCrypto();
         String message = "Hello, world!";
@@ -47,5 +56,9 @@ public class EncryptionTest
 
         ECMQVKeyPair ecmqvKeyPair = new ECMQVKeyPair();
         System.out.println(ecmqvKeyPair.getPublicKeyAsString());
+
+        PublicKey longTermPublicKey =
+                KeyFactory.getInstance("ECMQV", "BC").generatePublic(new X509EncodedKeySpec(Base64.decode(ecmqvKeyPair.getPublicKeyAsString())));
+        System.out.println(longTermPublicKey.getAlgorithm());
     }
 }

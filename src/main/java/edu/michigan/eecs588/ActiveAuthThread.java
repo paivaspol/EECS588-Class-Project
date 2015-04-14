@@ -15,10 +15,8 @@ public class ActiveAuthThread implements Runnable
     private Client client;
     private ECMQVKeyPair longTermKeyPair;
     private String anotherUser;
-    private Chat chat;
+    private PrivateChat chat;
     private RSAKeyPair keyPair;
-    private String reply;
-    private ChatMessageListener listener;
 
     /**
      * @param client The current chat client
@@ -27,7 +25,7 @@ public class ActiveAuthThread implements Runnable
      * @param keyPair The group specific key pair
      * @throws SmackException.NotConnectedException
      */
-    public ActiveAuthThread(Client client, Chat chat, String anotherUser, ECMQVKeyPair longTermKeyPair, RSAKeyPair keyPair)
+    public ActiveAuthThread(Client client, PrivateChat chat, String anotherUser, ECMQVKeyPair longTermKeyPair, RSAKeyPair keyPair)
             throws SmackException.NotConnectedException
     {
         this.client = client;
@@ -35,17 +33,6 @@ public class ActiveAuthThread implements Runnable
         this.anotherUser = anotherUser;
         this.chat = chat;
         this.keyPair = keyPair;
-        reply = null;
-        listener = new ChatMessageListener()
-        {
-            @Override
-            public void processMessage(Chat chat, Message message)
-            {
-                reply = message.getBody();
-                ActiveAuthThread.this.notify();
-            }
-        };
-        chat.addMessageListener(listener);
     }
 
     @Override
@@ -53,15 +40,34 @@ public class ActiveAuthThread implements Runnable
     {
         try
         {
+            /* Step 1: derive a symmetric key from MQV */
             AESCrypto crypto = deriveMQVKey(longTermKeyPair);
+
+            /* Step 2: Exchange public keys */
+            client.getPrinter().println("============Public key exchange starts============");
+            client.getPrinter().println("Sending group public key...\n" + keyPair.getPublicKeyAsString());
             chat.sendMessage(crypto.encrypt(keyPair.getPublicKeyAsString()));
-            String publicKeyForThatUser = waitForReply();
+            client.getPrinter().println("Group public key sent. Waiting for reply...");
+            String publicKeyForThatUser = crypto.decrypt(chat.nextMessage());
+            client.getPrinter().println("Public key received.");
+            client.getPrinter().println("============Public key exchange ends============\n");
+
+            /* Step 3: Sign the other one's public key for verification */
+            client.getPrinter().println("============Signature exchange starts============");
             Signer signer = new Signer(keyPair.getPrivateKey());
             String verificationMessage = crypto.encrypt(signer.sign(publicKeyForThatUser) + "," + publicKeyForThatUser);
+            client.getPrinter().println("Sending signature for verification...\n" + signer.sign(publicKeyForThatUser) + "," + publicKeyForThatUser);
             chat.sendMessage(verificationMessage);
-            String verificationMessageOfThatUser = waitForReply();
+            client.getPrinter().println("Signature sent, waiting for reply...");
+            String verificationMessageOfThatUser = crypto.decrypt(chat.nextMessage());
+            client.getPrinter().println("Signature received.\n" + verificationMessageOfThatUser);
+            client.getPrinter().println("============Signature exchange ends============\n");
+
+            /* Step 4: Verify the other one's signature */
+            client.getPrinter().println("============Signature verification starts============");
+            client.getPrinter().println("Verifying signature...");
             Verifier verifier = new Verifier(publicKeyForThatUser);
-            String[] decryptedData = crypto.decrypt(verificationMessageOfThatUser).split(",");
+            String[] decryptedData = verificationMessageOfThatUser.split(",");
             if (verifier.verify(decryptedData[1], decryptedData[0]))
             {
                 client.authDone(anotherUser, publicKeyForThatUser);
@@ -70,7 +76,7 @@ public class ActiveAuthThread implements Runnable
             {
                 client.authDone(anotherUser, null);
             }
-            chat.removeMessageListener(listener);
+            client.getPrinter().println("============Signature verification ends============\n");
         }
         catch (InterruptedException e)
         {
@@ -89,9 +95,15 @@ public class ActiveAuthThread implements Runnable
 
         try
         {
+            client.getPrinter().println("============MQV starts============");
+            client.getPrinter().println("Sending MQV key...");
             chat.sendMessage(MQVPublicKey);
-            AESCrypto crypto = agreement.doSecondPhase(waitForReply());
+            client.getPrinter().println("MQV Public key sent. Waiting for MQV reply...");
+            String message = chat.nextMessage();
+            client.getPrinter().println("MQV Public key received.");
+            AESCrypto crypto = agreement.doSecondPhase(message);
             client.MQVDone(anotherUser, crypto);
+            client.getPrinter().println("============MQV   ends============\n");
             return crypto;
 
         }
@@ -99,26 +111,5 @@ public class ActiveAuthThread implements Runnable
         {
             throw new RuntimeException(e);
         }
-    }
-
-    private String waitForReply()
-    {
-        while (reply == null)
-        {
-            synchronized (this)
-            {
-                try
-                {
-                    this.wait();
-                }
-                catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-            }
-        }
-        String message = reply;
-        reply = null;
-        return message;
     }
 }
