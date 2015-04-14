@@ -19,37 +19,51 @@ public class Main {
 
 	private static final String INVITE = "$invite";
 	private static final String CREATE = "$create";
+	private static final String SETUP = "$setup";
 
 	private static final String PRIVATE = "$private";
 	
 	public static void main(String[] args) throws SmackException, IOException, XMPPException {
 		Client client = new Client("smack.properties");
 		Scanner in = new Scanner(System.in);
-		String input = "";
+		String input;
 		String prompt = "eecs588";
 
-		Messenger m = null;
+		Messenger m;
 		while (true) {
 			System.out.print(prompt + "> ");
 			input = in.nextLine();
 			CommandType commandType = parseInput(input);
-			if (commandType.equals(CommandType.CREATE)) {
-				String[] splitted = input.split(" ");
-				client.createRoom(splitted[1]);
-				MultiUserChat muc = client.getMultiUserChat();
-				prompt = muc.getRoom().toString();
-				m = client.getMessenger();
-			} else if (commandType.equals(CommandType.INVITE)) {
-				String[] splitted = input.split(" ");
-				client.inviteParticipant(splitted[1]);
-			} else if (input.startsWith(PRIVATE)) {
-				String[] splitted = input.split(" ");
-				client.createPrivateChat(splitted[1]);
-			} else {
-				m = client.getMessenger();
-				if (m != null) {
-					m.sendMessage(input);
-				}
+			String[] splitted;
+			switch (commandType)
+			{
+				case CREATE:
+					splitted = input.split(" ");
+					client.createRoom(splitted[1]);
+					MultiUserChat muc = client.getMultiUserChat();
+					prompt = muc.getRoom();
+					break;
+
+				case INVITE:
+					splitted = input.split(" ");
+					client.inviteParticipant(splitted[1]);
+					break;
+
+				case SETUP:
+					client.setup();
+					break;
+
+				case PRIVATE:
+					splitted = input.split(" ");
+					client.createPrivateChat(splitted[1]);
+					break;
+
+				case MESSAGE:
+					m = client.getMessenger();
+					if (m != null) {
+						m.sendMessage(input);
+					}
+					break;
 			}
 		}
 	}
@@ -59,7 +73,11 @@ public class Main {
     		return CommandType.CREATE;
     	} else if (command.startsWith(INVITE)) {
     		return CommandType.INVITE;
-    	}
+    	} else if (command.startsWith(SETUP)) {
+			return CommandType.SETUP;
+		} else if (command.startsWith(PRIVATE)) {
+			return CommandType.PRIVATE;
+		}
     	return CommandType.MESSAGE;
     }
 

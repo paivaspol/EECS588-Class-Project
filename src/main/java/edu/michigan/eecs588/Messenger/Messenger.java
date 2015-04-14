@@ -39,7 +39,7 @@ public class Messenger {
     int currentLocalCount = 0;
     Map<String, SentMsgInfo> localSentMessages = new HashMap<>();
 
-    public Messenger(MultiUserChat muc, MessageReceived callback, Map<String, Verifier> publicKeys,
+    public Messenger(MultiUserChat muc, MessageReceived callback, final Map<String, Verifier> publicKeys,
                      Signer userSigner, String secret) {
         this.muc = muc;
         this.cb = callback;
@@ -52,7 +52,6 @@ public class Messenger {
         this.muc.addMessageListener(new MessageListener() {
             @Override
             public void processMessage(Message message) {
-            	System.out.println("sup?");
                 String encryptedMessage = message.getBody();
                 // if it is our message
                 if (localSentMessages.containsKey(encryptedMessage)) {
@@ -76,6 +75,7 @@ public class Messenger {
 //                System.out.println("sign: " +  sign);
                 String messageNoSign = getMessage(dcryptMsgStr);
                 Verifier senderVerf = Messenger.this.publicKeys.get(XmppStringUtils.parseResource(message.getFrom()));
+//                System.out.println("publickeys:  " + publicKeys);
                 if (sign != null && dcryptMsgStr != null && senderVerf != null && messageNoSign != null &&
                         senderVerf.verify(messageNoSign, sign)) {
                     MMessage m = new MMessage(messageNoSign, message.getFrom());
@@ -88,7 +88,7 @@ public class Messenger {
     }
 
     public void sendMessage(String message) throws SmackException.NotConnectedException {
-        if (message != null && message != "") {
+        if (message != null && !message.equals("")) {
             String sign = userSigner.sign(message);
             String signedMessage = sign + "," + message;
             String encrypted = encrypto.encrypt(signedMessage);

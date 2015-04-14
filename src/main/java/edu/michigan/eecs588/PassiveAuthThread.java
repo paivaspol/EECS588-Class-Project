@@ -52,12 +52,18 @@ public class PassiveAuthThread implements Runnable
         try
         {
             AESCrypto crypto = deriveMQVKey(longTermKeyPair);
+            System.out.println("Waiting for public key of another thread...");
             String publicKeyForThatUser = waitForReply();
+            System.out.println("Public key received. Sending my public key...");
             chat.sendMessage(crypto.encrypt(keyPair.getPublicKeyAsString()));
+            System.out.println("Public key sent.");
             Signer signer = new Signer(keyPair.getPrivateKey());
             String verificationMessage = crypto.encrypt(signer.sign(publicKeyForThatUser) + "," + publicKeyForThatUser);
+            System.out.println("Waiting for his signature...");
             String verificationMessageOfThatUser = waitForReply();
+            System.out.println("Signature received. Sending my signature...");
             chat.sendMessage(verificationMessage);
+            System.out.println("Signature sent.");
             Verifier verifier = new Verifier(publicKeyForThatUser);
             String[] decryptedData = crypto.decrypt(verificationMessageOfThatUser).split(",");
             if (verifier.verify(decryptedData[1], decryptedData[0]))
@@ -87,8 +93,11 @@ public class PassiveAuthThread implements Runnable
 
         try
         {
+            System.out.println("Waiting for MQV reply from the other thread...");
             AESCrypto crypto = agreement.doSecondPhase(waitForReply());
+            System.out.println("MQV done. Sending MQV reply to the other thread...");
             chat.sendMessage(MQVPublicKey);
+            System.out.println("MQV reply sent.");
             return crypto;
 
         }
@@ -100,15 +109,18 @@ public class PassiveAuthThread implements Runnable
 
     private String waitForReply()
     {
-        synchronized (this)
+        while (reply == null)
         {
-            try
+            synchronized (this)
             {
-                this.wait();
-            }
-            catch (InterruptedException e)
-            {
-                e.printStackTrace();
+                try
+                {
+                    this.wait();
+                }
+                catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                }
             }
         }
         String message = reply;
