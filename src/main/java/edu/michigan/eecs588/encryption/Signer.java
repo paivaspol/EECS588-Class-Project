@@ -9,6 +9,10 @@ public class Signer
 {
     private Signature signature;
 
+    /**
+     * An object used for signing data given a private key
+     * @param privateKey the private of the key pair
+     */
     public Signer(PrivateKey privateKey)
     {
         try
@@ -16,16 +20,17 @@ public class Signer
             signature = Signature.getInstance("SHA256withRSA");
             signature.initSign(privateKey);
         }
-        catch (NoSuchAlgorithmException e)
-        {
-            e.printStackTrace();
-        }
-        catch (InvalidKeyException e)
+        catch (NoSuchAlgorithmException | InvalidKeyException e)
         {
             e.printStackTrace();
         }
     }
 
+    /**
+     * Sign the message with the private key
+     * @param message The message to be signed
+     * @return A signature corresponding to the given message
+     */
     public String sign(String message)
     {
         try
@@ -34,11 +39,7 @@ public class Signer
             signature.update(data);
             return Base64.encodeBytes(signature.sign());
         }
-        catch (UnsupportedEncodingException e)
-        {
-            e.printStackTrace();
-        }
-        catch (SignatureException e)
+        catch (UnsupportedEncodingException | SignatureException e)
         {
             e.printStackTrace();
         }

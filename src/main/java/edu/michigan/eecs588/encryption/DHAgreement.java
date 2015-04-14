@@ -1,10 +1,10 @@
 package edu.michigan.eecs588.encryption;
 
-import org.bouncycastle.jce.ECPointUtil;
+import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.MQVPrivateKeySpec;
 import org.bouncycastle.jce.spec.MQVPublicKeySpec;
-import org.bouncycastle.util.encoders.Hex;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
@@ -16,7 +16,6 @@ import javax.crypto.spec.DHParameterSpec;
 import java.math.BigInteger;
 import java.security.*;
 import java.security.spec.ECFieldFp;
-import java.security.spec.ECParameterSpec;
 import java.security.spec.EllipticCurve;
 import java.security.spec.X509EncodedKeySpec;
 
@@ -146,17 +145,7 @@ public class DHAgreement implements Runnable {
     {
         KeyPairGenerator g = KeyPairGenerator.getInstance("ECMQV", "BC");
 
-        EllipticCurve curve = new EllipticCurve(
-                new ECFieldFp(new BigInteger("883423532389192164791648750360308885314476597252960362792450860609699839")), // q
-                new BigInteger("7fffffffffffffffffffffff7fffffffffff8000000000007ffffffffffc", 16), // a
-                new BigInteger("6b016c3bdcf18941d0d654921475ca71a9db2fb27d1d37796185c2942c0a", 16)); // b
-
-        ECParameterSpec ecSpec = new ECParameterSpec(
-                curve,
-                ECPointUtil.decodePoint(curve, Hex.decode("020ffa963cdca8816ccc33b8642bedf905c3d358573d3f27fbbd3b3cb9aaaf")), // G
-                new BigInteger("883423532389192164791648750360308884807550341691627752275345424702807307"), // n
-                1); // h
-
+        ECNamedCurveParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("secp256r1");
         g.initialize(ecSpec, new SecureRandom());
 
         //
@@ -183,7 +172,8 @@ public class DHAgreement implements Runnable {
         uAgree.doPhase(new MQVPublicKeySpec(V1.getPublic(), V2.getPublic()), true);
         vAgree.doPhase(new MQVPublicKeySpec(U1.getPublic(), U2.getPublic()), true);
 
-        BigInteger ux = new BigInteger(uAgree.generateSecret());
+        byte[] secret = uAgree.generateSecret();
+        BigInteger ux = new BigInteger(secret);
         BigInteger vx = new BigInteger(vAgree.generateSecret());
 
         if (!ux.equals(vx))
@@ -192,7 +182,7 @@ public class DHAgreement implements Runnable {
         }
         else
         {
-            System.out.println(ux);
+            System.out.println(secret.length);
         }
 
     }
@@ -209,7 +199,7 @@ public class DHAgreement implements Runnable {
         ECMQVKeyAgreement agreement2 = new ECMQVKeyAgreement();
         String publicKey2 = agreement2.doFirstPhase(new ECMQVKeyPair());
 
-        System.out.println(agreement1.doSecondPhase(publicKey2));
-        System.out.println(agreement2.doSecondPhase(publicKey1));
+        System.out.println(agreement1.doSecondPhase(publicKey2).getSecret());
+        System.out.println(agreement2.doSecondPhase(publicKey1).getSecret());
     }
 }

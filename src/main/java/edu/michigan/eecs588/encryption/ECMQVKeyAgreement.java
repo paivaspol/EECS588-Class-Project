@@ -15,7 +15,12 @@ public class ECMQVKeyAgreement
 {
     private  KeyAgreement agreement;
 
-    public  String doFirstPhase(ECMQVKeyPair longTermKeyPair)
+    /**
+     * Do the first phase of MQV
+     * @param longTermKeyPair The long term ECMQV key pair
+     * @return The ephemeral public key which should be sent to the other one
+     */
+    public String doFirstPhase(ECMQVKeyPair longTermKeyPair)
     {
         ECMQVKeyPair ephemeralKeyPair = new ECMQVKeyPair();
         MQVPrivateKey mqvPrivateKey = new MQVPrivateKeySpec(longTermKeyPair.getPrivateKey(),
@@ -26,15 +31,7 @@ public class ECMQVKeyAgreement
             agreement.init(mqvPrivateKey);
             return encodeMQVPublicKey(longTermKeyPair.getPublicKey(), ephemeralKeyPair.getPublicKey());
         }
-        catch (NoSuchAlgorithmException e)
-        {
-            e.printStackTrace();
-        }
-        catch (NoSuchProviderException e)
-        {
-            e.printStackTrace();
-        }
-        catch (InvalidKeyException e)
+        catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchProviderException e)
         {
             e.printStackTrace();
         }
@@ -42,7 +39,12 @@ public class ECMQVKeyAgreement
         return null;
     }
 
-    public  String doSecondPhase(String firstPhaseResult)
+    /**
+     * Do the second phase of MQV
+     * @param firstPhaseResult The ephemeral public key of the other one
+     * @return An AESCrypto with the derived secret
+     */
+    public AESCrypto doSecondPhase(String firstPhaseResult)
     {
         String[] publicKeys = firstPhaseResult.split(",");
         try
@@ -53,21 +55,9 @@ public class ECMQVKeyAgreement
                     KeyFactory.getInstance("ECMQV", "BC").generatePublic(new X509EncodedKeySpec(Base64.decode(publicKeys[1])));
             MQVPublicKey publicKey = new MQVPublicKeySpec(longTermPublicKey, ephemeralPublicKey);
             agreement.doPhase(publicKey, true);
-            return Base64.encodeBytes(agreement.generateSecret());
+            return new AESCrypto(agreement.generateSecret());
         }
-        catch (InvalidKeySpecException e)
-        {
-            e.printStackTrace();
-        }
-        catch (NoSuchAlgorithmException e)
-        {
-            e.printStackTrace();
-        }
-        catch (NoSuchProviderException e)
-        {
-            e.printStackTrace();
-        }
-        catch (InvalidKeyException e)
+        catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException | NoSuchProviderException e)
         {
             e.printStackTrace();
         }

@@ -11,6 +11,10 @@ public class Verifier
 {
     private Signature signature;
 
+    /**
+     * An object used for verifying signatures
+     * @param publicKey The public key for verifying the messages
+     */
     public Verifier(PublicKey publicKey)
     {
         try
@@ -18,17 +22,16 @@ public class Verifier
             signature = Signature.getInstance("SHA256withRSA");
             signature.initVerify(publicKey);
         }
-        catch (NoSuchAlgorithmException e)
-        {
-            e.printStackTrace();
-        }
-        catch (InvalidKeyException e)
+        catch (NoSuchAlgorithmException | InvalidKeyException e)
         {
             e.printStackTrace();
         }
     }
 
-
+    /**
+     *  An object used for verifying signatures given a public key as a string
+     * @param publicKeyString The public key for verifying the messages encoded using Base64
+     */
     public Verifier(String publicKeyString)
     {
         try
@@ -38,20 +41,18 @@ public class Verifier
             signature = Signature.getInstance("SHA256withRSA");
             signature.initVerify(publicKey);
         }
-        catch (InvalidKeySpecException e)
-        {
-            e.printStackTrace();
-        }
-        catch (NoSuchAlgorithmException e)
-        {
-            e.printStackTrace();
-        }
-        catch (InvalidKeyException e)
+        catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e)
         {
             e.printStackTrace();
         }
     }
 
+    /**
+     * Verify a signature
+     * @param message The message
+     * @param cipherText The signature
+     * @return True if the verification succeeds, false otherwise
+     */
     public boolean verify(String message, String cipherText)
     {
         try
@@ -59,11 +60,7 @@ public class Verifier
             signature.update(message.getBytes("UTF-8"));
             return signature.verify(Base64.decode(cipherText));
         }
-        catch (SignatureException e)
-        {
-            e.printStackTrace();
-        }
-        catch (UnsupportedEncodingException e)
+        catch (SignatureException | UnsupportedEncodingException e)
         {
             e.printStackTrace();
         }

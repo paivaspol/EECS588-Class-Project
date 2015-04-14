@@ -39,7 +39,7 @@ public class Messenger {
     int currentLocalCount = 0;
     Map<String, SentMsgInfo> localSentMessages = new HashMap<>();
 
-    public Messenger(MultiUserChat muc, MessageReceived callback, Map<String, Verifier> publicKeys,
+    public Messenger(MultiUserChat muc, MessageReceived callback, final Map<String, Verifier> publicKeys,
                      Signer userSigner, String secret) {
         this.muc = muc;
         this.cb = callback;
@@ -52,7 +52,6 @@ public class Messenger {
         this.muc.addMessageListener(new MessageListener() {
             @Override
             public void processMessage(Message message) {
-            	System.out.println("sup?");
                 String encryptedMessage = message.getBody();
                 // if it is our message
                 if (localSentMessages.containsKey(encryptedMessage)) {
@@ -77,12 +76,8 @@ public class Messenger {
 //                System.out.println("sign: " +  sign);
                 String messageNoSign = getMessage(dcryptMsgStr);
                 Verifier senderVerf = Messenger.this.publicKeys.get(XmppStringUtils.parseResource(message.getFrom()));
-                if (senderVerf != null && messageNoSign != null && sign != null) {
-                	System.out.println("senderVerf.verify(messageNoSign, sign): " + senderVerf.verify(messageNoSign, sign));
-                }
                 if (sign != null && dcryptMsgStr != null && senderVerf != null && messageNoSign != null &&
                         senderVerf.verify(messageNoSign, sign)) {
-                	System.out.println("Here!");
                     MMessage m = new MMessage(messageNoSign, message.getFrom());
                     cb.onMessageReceived(m);
                     rollGlobalKey();
