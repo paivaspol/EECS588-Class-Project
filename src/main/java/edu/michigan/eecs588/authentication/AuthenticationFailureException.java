@@ -1,4 +1,4 @@
-package edu.michigan.eecs588;
+package edu.michigan.eecs588.authentication;
 
 public class AuthenticationFailureException extends Exception
 {

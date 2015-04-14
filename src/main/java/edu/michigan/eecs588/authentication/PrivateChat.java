@@ -1,5 +1,6 @@
-package edu.michigan.eecs588;
+package edu.michigan.eecs588.authentication;
 
+import edu.michigan.eecs588.encryption.AESCrypto;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.chat.Chat;
 import org.jivesoftware.smack.chat.ChatMessageListener;
@@ -13,6 +14,7 @@ public class PrivateChat
 {
     private Chat chat;
     private final Queue<String> messageQueue;
+    private AESCrypto crypto;
 
     public PrivateChat(MultiUserChat muc, String user)
     {
@@ -43,7 +45,6 @@ public class PrivateChat
             @Override
             public void processMessage(Chat chat, Message message)
             {
-//                System.out.println("Message received: \n" + message.getBody());
                 synchronized (messageQueue)
                 {
                     messageQueue.add(message.getBody());
@@ -53,8 +54,17 @@ public class PrivateChat
         });
     }
 
+    public void enableEncryption(AESCrypto crypto)
+    {
+        this.crypto = crypto;
+    }
+
     public void sendMessage(String message) throws SmackException.NotConnectedException
     {
+        if (crypto != null)
+        {
+            message = crypto.encrypt(message);
+        }
         chat.sendMessage(message);
     }
 
@@ -74,8 +84,18 @@ public class PrivateChat
                 }
             }
         }
-        return messageQueue.remove();
+        String message = messageQueue.remove();
+        if (crypto != null)
+        {
+            message = crypto.decrypt(message);
+        }
 
+        return message;
+    }
+
+    public String getParticipant()
+    {
+        return chat.getParticipant();
     }
 
     public void close()

@@ -3,6 +3,10 @@ package edu.michigan.eecs588;
 import edu.michigan.eecs588.Messenger.MMessage;
 import edu.michigan.eecs588.Messenger.MessageReceived;
 import edu.michigan.eecs588.Messenger.Messenger;
+import edu.michigan.eecs588.authentication.ActiveAuthThread;
+import edu.michigan.eecs588.authentication.AuthenticationFailureException;
+import edu.michigan.eecs588.authentication.GroupVerificationThread;
+import edu.michigan.eecs588.authentication.PrivateChat;
 import edu.michigan.eecs588.encryption.*;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
@@ -47,7 +51,6 @@ public class Client {
 	private ECMQVKeyPair longTermKeyPair;
 	private RSAKeyPair keyPair;
 	private final TreeMap<String, String> participants;
-	private final Map<String, AESCrypto> cryptoes;
 	private final TreeMap<String, PrivateChat> privateChats;
 	private int verificationCount;
 	private boolean verificationSucceeds;
@@ -113,7 +116,6 @@ public class Client {
 
 		longTermKeyPair = new ECMQVKeyPair();
 		participants = new TreeMap<>();
-		cryptoes = new HashMap<>();
 		privateChats = new TreeMap<>();
 		LOCK = new Object();
 		isInitiator = false;
@@ -142,7 +144,6 @@ public class Client {
 
 		longTermKeyPair = new ECMQVKeyPair();
 		participants = new TreeMap<>();
-		cryptoes = new HashMap<>();
 		privateChats = new TreeMap<>();
 		LOCK = new Object();
 		isInitiator = false;
@@ -175,7 +176,7 @@ public class Client {
 					{
 						PrivateChat privateChat = new PrivateChat(chat);
 						privateChats.put(chat.getParticipant(), privateChat);
-						(new Thread(new ActiveAuthThread(Client.this, privateChat, chat.getParticipant(), longTermKeyPair, keyPair))).start();
+						(new Thread(new ActiveAuthThread(Client.this, privateChat, longTermKeyPair, keyPair))).start();
 					}
 					catch (NotConnectedException e)
 					{
@@ -440,7 +441,7 @@ public class Client {
 				String user = occupants.get(indexOfUser);
 				PrivateChat chat = new PrivateChat(muc, user);
 				privateChats.put(user, chat);
-				(new Thread(new ActiveAuthThread(Client.this, chat, user, longTermKeyPair, keyPair))).start();
+				(new Thread(new ActiveAuthThread(Client.this, chat, longTermKeyPair, keyPair))).start();
 			}
 			catch (NotConnectedException e)
 			{
@@ -499,15 +500,13 @@ public class Client {
 			rootKey = new AESCrypto();
 			for (Map.Entry<String, PrivateChat> privateChat : privateChats.entrySet())
 			{
-				AESCrypto crypto = cryptoes.get(privateChat.getKey());
-				privateChat.getValue().sendMessage(crypto.encrypt(rootKey.getSecret()));
+				privateChat.getValue().sendMessage(rootKey.getSecret());
 			}
 		}
 		else
 		{
-			AESCrypto crypto = cryptoes.get(participants.firstKey());
 			PrivateChat chatWithFirstParticipant = privateChats.firstEntry().getValue();
-			rootKey = new AESCrypto(crypto.decrypt(chatWithFirstParticipant.nextMessage()));
+			rootKey = new AESCrypto(chatWithFirstParticipant.nextMessage());
 		}
 	}
 
@@ -532,9 +531,8 @@ public class Client {
 		{
 			try
 			{
-				String user = privateChat.getKey();
 				PrivateChat chat = privateChat.getValue();
-				(new Thread(new GroupVerificationThread(Client.this, chat, hash, cryptoes.get(user)))).start();
+				(new Thread(new GroupVerificationThread(Client.this, chat, hash))).start();
 			}
 			catch (NotConnectedException e)
 			{
@@ -549,19 +547,6 @@ public class Client {
 		if (!verificationSucceeds)
 		{
 			throw new AuthenticationFailureException();
-		}
-	}
-
-	/**
-	 * Called when a pairwise MQV key agreement is done
-	 * @param anotherUser The user with which the agreement happens
-	 * @param crypto The symmetric key derived from MQV
-	 */
-	public void MQVDone(String anotherUser, AESCrypto crypto)
-	{
-		synchronized (cryptoes)
-		{
-			cryptoes.put(anotherUser, crypto);
 		}
 	}
 

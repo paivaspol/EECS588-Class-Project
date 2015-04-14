@@ -1,10 +1,8 @@
-package edu.michigan.eecs588;
+package edu.michigan.eecs588.authentication;
 
-import edu.michigan.eecs588.encryption.AESCrypto;
+import edu.michigan.eecs588.Client;
+import edu.michigan.eecs588.authentication.PrivateChat;
 import org.jivesoftware.smack.SmackException;
-import org.jivesoftware.smack.chat.Chat;
-import org.jivesoftware.smack.chat.ChatMessageListener;
-import org.jivesoftware.smack.packet.Message;
 
 /**
  * This one represents a thread for verification of participants
@@ -16,11 +14,11 @@ public class GroupVerificationThread implements Runnable
     private PrivateChat chat;
     private String messageForVerification;
 
-    public GroupVerificationThread(Client client, PrivateChat chat, String hashForVerification, AESCrypto crypto) throws SmackException.NotConnectedException
+    public GroupVerificationThread(Client client, PrivateChat chat, String hashForVerification) throws SmackException.NotConnectedException
     {
         this.client = client;
         this.chat = chat;
-        this.messageForVerification = crypto.encrypt(hashForVerification);
+        this.messageForVerification = hashForVerification;
     }
 
     @Override

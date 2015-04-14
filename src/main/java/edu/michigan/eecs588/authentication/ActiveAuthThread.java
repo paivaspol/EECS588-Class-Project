@@ -1,10 +1,8 @@
-package edu.michigan.eecs588;
+package edu.michigan.eecs588.authentication;
 
+import edu.michigan.eecs588.Client;
 import edu.michigan.eecs588.encryption.*;
 import org.jivesoftware.smack.SmackException;
-import org.jivesoftware.smack.chat.Chat;
-import org.jivesoftware.smack.chat.ChatMessageListener;
-import org.jivesoftware.smack.packet.Message;
 
 /**
  * This class represents a thread for pairwise authentication
@@ -20,17 +18,16 @@ public class ActiveAuthThread implements Runnable
 
     /**
      * @param client The current chat client
-     * @param anotherUser The user the authenticate with
      * @param longTermKeyPair The long term key pair of this user
      * @param keyPair The group specific key pair
      * @throws SmackException.NotConnectedException
      */
-    public ActiveAuthThread(Client client, PrivateChat chat, String anotherUser, ECMQVKeyPair longTermKeyPair, RSAKeyPair keyPair)
+    public ActiveAuthThread(Client client, PrivateChat chat, ECMQVKeyPair longTermKeyPair, RSAKeyPair keyPair)
             throws SmackException.NotConnectedException
     {
         this.client = client;
         this.longTermKeyPair = longTermKeyPair;
-        this.anotherUser = anotherUser;
+        this.anotherUser = chat.getParticipant();
         this.chat = chat;
         this.keyPair = keyPair;
     }
@@ -42,24 +39,25 @@ public class ActiveAuthThread implements Runnable
         {
             /* Step 1: derive a symmetric key from MQV */
             AESCrypto crypto = deriveMQVKey(longTermKeyPair);
+            chat.enableEncryption(crypto);
 
             /* Step 2: Exchange public keys */
             client.getPrinter().println("============Public key exchange starts============");
             client.getPrinter().println("Sending group public key...");
-            chat.sendMessage(crypto.encrypt(keyPair.getPublicKeyAsString()));
+            chat.sendMessage(keyPair.getPublicKeyAsString());
             client.getPrinter().println("Group public key sent. Waiting for reply...");
-            String publicKeyForThatUser = crypto.decrypt(chat.nextMessage());
+            String publicKeyForThatUser = chat.nextMessage();
             client.getPrinter().println("Public key received.");
             client.getPrinter().println("============Public key exchange ends============\n");
 
             /* Step 3: Sign the other one's public key for verification */
             client.getPrinter().println("============Signature exchange starts============");
             Signer signer = new Signer(keyPair.getPrivateKey());
-            String verificationMessage = crypto.encrypt(signer.sign(publicKeyForThatUser) + "," + publicKeyForThatUser);
+            String verificationMessage = signer.sign(publicKeyForThatUser) + "," + publicKeyForThatUser;
             client.getPrinter().println("Sending signature for verification...");
             chat.sendMessage(verificationMessage);
             client.getPrinter().println("Signature sent, waiting for reply...");
-            String verificationMessageOfThatUser = crypto.decrypt(chat.nextMessage());
+            String verificationMessageOfThatUser = chat.nextMessage();
             client.getPrinter().println("Signature received.");
             client.getPrinter().println("============Signature exchange ends============\n");
 
@@ -104,7 +102,6 @@ public class ActiveAuthThread implements Runnable
             String message = chat.nextMessage();
             client.getPrinter().println("MQV Public key received.");
             AESCrypto crypto = agreement.doSecondPhase(message);
-            client.MQVDone(anotherUser, crypto);
             client.getPrinter().println("============MQV ends============\n");
             return crypto;
 

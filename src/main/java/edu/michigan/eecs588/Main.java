@@ -39,7 +39,6 @@ public class Main {
 				case CREATE:
 					splitted = input.split(" ");
 					client.createRoom(splitted[1]);
-					MultiUserChat muc = client.getMultiUserChat();
 					break;
 
 				case INVITE:

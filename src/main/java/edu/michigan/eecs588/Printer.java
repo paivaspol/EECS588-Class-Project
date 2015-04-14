@@ -11,11 +11,11 @@ public class Printer
 
     public void println(Object text)
     {
-        System.out.println(System.currentTimeMillis() + ":" + client.getRoomName() + "> " + text);
+        System.out.println(client.getRoomName() + "> " + text);
     }
 
     public void print()
     {
-        System.out.print(System.currentTimeMillis() + ":" + client.getRoomName() + "> ");
+        System.out.print(client.getRoomName() + "> ");
     }
 }
