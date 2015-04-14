@@ -65,6 +65,7 @@ public class Messenger {
                         } catch (SmackException.NotConnectedException e) {
                             e.printStackTrace();
                         }
+                        System.out.println("Don't f-ing return!");
                         return;
                     }
                     localSentMessages.remove(encryptedMessage);
@@ -76,8 +77,12 @@ public class Messenger {
 //                System.out.println("sign: " +  sign);
                 String messageNoSign = getMessage(dcryptMsgStr);
                 Verifier senderVerf = Messenger.this.publicKeys.get(XmppStringUtils.parseResource(message.getFrom()));
+                if (senderVerf != null && messageNoSign != null && sign != null) {
+                	System.out.println("senderVerf.verify(messageNoSign, sign): " + senderVerf.verify(messageNoSign, sign));
+                }
                 if (sign != null && dcryptMsgStr != null && senderVerf != null && messageNoSign != null &&
                         senderVerf.verify(messageNoSign, sign)) {
+                	System.out.println("Here!");
                     MMessage m = new MMessage(messageNoSign, message.getFrom());
                     cb.onMessageReceived(m);
                     rollGlobalKey();
@@ -88,7 +93,7 @@ public class Messenger {
     }
 
     public void sendMessage(String message) throws SmackException.NotConnectedException {
-        if (message != null && message != "") {
+        if (message != null && !message.equals("")) {
             String sign = userSigner.sign(message);
             String signedMessage = sign + "," + message;
             String encrypted = encrypto.encrypt(signedMessage);
