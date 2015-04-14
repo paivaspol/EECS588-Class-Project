@@ -98,7 +98,7 @@ public class Client {
 		/* For testing purposes. */
 		Verifier veri = new Verifier(X.getPublicKey());
 		publicKeys.put(configFile.get("username"), veri);
-		publicKeys.put("eugene", veri);
+		publicKeys.put("b", veri);
 		setupChatListener();
 	}
 	
@@ -112,6 +112,12 @@ public class Client {
 	 */
 	public Client(String configFilename) throws IOException, SmackException, XMPPException {
 		this.configFile = ConfigFileReader.getConfigValues(configFilename);
+		
+		/* For testing purposes. */
+		Verifier veri = new Verifier(X.getPublicKey());
+		publicKeys.put(configFile.get("username"), veri);
+		publicKeys.put("b", veri);
+		
 		this.connection = createConnectionAndLogin(configFile);
 		addInvitationListener(connection);
 		setupChatListener();
