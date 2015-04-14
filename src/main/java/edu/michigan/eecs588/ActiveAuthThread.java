@@ -45,7 +45,7 @@ public class ActiveAuthThread implements Runnable
 
             /* Step 2: Exchange public keys */
             client.getPrinter().println("============Public key exchange starts============");
-            client.getPrinter().println("Sending group public key...\n" + keyPair.getPublicKeyAsString());
+            client.getPrinter().println("Sending group public key...");
             chat.sendMessage(crypto.encrypt(keyPair.getPublicKeyAsString()));
             client.getPrinter().println("Group public key sent. Waiting for reply...");
             String publicKeyForThatUser = crypto.decrypt(chat.nextMessage());
@@ -56,11 +56,11 @@ public class ActiveAuthThread implements Runnable
             client.getPrinter().println("============Signature exchange starts============");
             Signer signer = new Signer(keyPair.getPrivateKey());
             String verificationMessage = crypto.encrypt(signer.sign(publicKeyForThatUser) + "," + publicKeyForThatUser);
-            client.getPrinter().println("Sending signature for verification...\n" + signer.sign(publicKeyForThatUser) + "," + publicKeyForThatUser);
+            client.getPrinter().println("Sending signature for verification...");
             chat.sendMessage(verificationMessage);
             client.getPrinter().println("Signature sent, waiting for reply...");
             String verificationMessageOfThatUser = crypto.decrypt(chat.nextMessage());
-            client.getPrinter().println("Signature received.\n" + verificationMessageOfThatUser);
+            client.getPrinter().println("Signature received.");
             client.getPrinter().println("============Signature exchange ends============\n");
 
             /* Step 4: Verify the other one's signature */
@@ -70,10 +70,12 @@ public class ActiveAuthThread implements Runnable
             String[] decryptedData = verificationMessageOfThatUser.split(",");
             if (verifier.verify(decryptedData[1], decryptedData[0]))
             {
+                client.getPrinter().println("Verification succeeds.");
                 client.authDone(anotherUser, publicKeyForThatUser);
             }
             else
             {
+                client.getPrinter().println("Verification fails.");
                 client.authDone(anotherUser, null);
             }
             client.getPrinter().println("============Signature verification ends============\n");
@@ -103,7 +105,7 @@ public class ActiveAuthThread implements Runnable
             client.getPrinter().println("MQV Public key received.");
             AESCrypto crypto = agreement.doSecondPhase(message);
             client.MQVDone(anotherUser, crypto);
-            client.getPrinter().println("============MQV   ends============\n");
+            client.getPrinter().println("============MQV ends============\n");
             return crypto;
 
         }

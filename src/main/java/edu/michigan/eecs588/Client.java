@@ -15,7 +15,6 @@ import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.chat.Chat;
 import org.jivesoftware.smack.chat.ChatManager;
 import org.jivesoftware.smack.chat.ChatManagerListener;
-import org.jivesoftware.smack.chat.ChatMessageListener;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Presence.Type;
@@ -175,7 +174,6 @@ public class Client {
 					try
 					{
 						PrivateChat privateChat = new PrivateChat(chat);
-						printer.println(chat);
 						privateChats.put(chat.getParticipant(), privateChat);
 						(new Thread(new ActiveAuthThread(Client.this, privateChat, chat.getParticipant(), longTermKeyPair, keyPair))).start();
 					}
@@ -193,14 +191,6 @@ public class Client {
 		return muc;
 	}
 
-	public AbstractXMPPConnection getConnection() {
-		return connection;
-	}
-
-	public Map<String, String> getConfigFile() {
-		return configFile;
-	}
-	
 	public Messenger getMessenger() {
 		return messenger;
 	}
@@ -331,19 +321,27 @@ public class Client {
 				{
 					if (!isInitiator)
 					{
-						try
+						(new Thread(new Runnable()
 						{
-							authenticate();
-						}
-						catch (AuthenticationFailureException e)
-						{
-							printer.println("Authentication failed.");
-						}
+							@Override
+							public void run()
+							{
+								try
+								{
+									authenticate();
+								}
+								catch (AuthenticationFailureException e)
+								{
+									printer.println("Authentication failed.");
+								}
+							}
+						})).start();
 					}
 				}
 				else
 				{
-					printer.println(message.getUsername() + ": " + messageBody);
+					System.out.println(message.getUsername() + ": " + messageBody);
+					printer.print();
 				}
 			}
 		}, publicKeys, sign, "2xil0x35oH8onjyLeudMlP+5h18r/HZ3drd3WXrqm9I=");
@@ -386,27 +384,36 @@ public class Client {
 
 		try
 		{
-
 			/* Step 1: exchange public keys with all other participants */
 			printer.println("Exchanging public keys with the other participants...");
 			exchangePublicKeys(occupants);
+			printer.println("Public key exchange done.");
 
 			/* Step 2: verify that all participants have the same view of the public keys */
 			printer.println("Verifying public keys...");
 			verifyPublicKeys();
+			printer.println("Public key verification done.");
 
 			/* Step 3: the first participant(in alphabetic order) generates the root key
 			*          and sends it to all other participants */
 			printer.println("Generating root key...");
 			sendOrReceiveRootKey();
+			printer.println("Root key generated and sent.");
 
 			/* Step 4: verify that all participants have the same root key */
 			printer.println("Verifying root key...");
 			verifyRootKey();
+			printer.println("Root key verification done.");
 
 			for (Map.Entry<String, PrivateChat> privateChat : privateChats.entrySet())
 			{
 				privateChat.getValue().close();
+			}
+
+			printer.println("Authentication done.");
+			if (!isInitiator)
+			{
+				printer.print();
 			}
 		}
 		catch (NoSuchAlgorithmException | InterruptedException | UnsupportedEncodingException e)
@@ -422,7 +429,7 @@ public class Client {
 	private void exchangePublicKeys(List<String> occupants)
 	{
 		keyPair = new RSAKeyPair();
-		String meInChatRoom = roomName + "/" + configFile.get("username");
+		String meInChatRoom = getUsername();
 		int indexOfUser = occupants.indexOf(meInChatRoom) + 1;
 
 		// Participants only establish private chat with participants after him in alphabetical order
@@ -431,9 +438,7 @@ public class Client {
 			try
 			{
 				String user = occupants.get(indexOfUser);
-				printer.println("Creating private chat with " + user);
 				PrivateChat chat = new PrivateChat(muc, user);
-				printer.println("Private chat created successfully.\n" + chat);
 				privateChats.put(user, chat);
 				(new Thread(new ActiveAuthThread(Client.this, chat, user, longTermKeyPair, keyPair))).start();
 			}
@@ -447,7 +452,6 @@ public class Client {
 		{
 			try
 			{
-				printer.println("Start waiting...");
 				LOCK.wait();
 			}
 			catch (InterruptedException e)
@@ -455,15 +459,18 @@ public class Client {
 				e.printStackTrace();
 			}
 		}
+		participants.put(getUsername(), keyPair.getPublicKeyAsString());
 		ChatManager.getInstanceFor(connection).removeChatListener(listener);
 	}
 
 	private void verifyPublicKeys() throws NoSuchAlgorithmException, AuthenticationFailureException, InterruptedException
 	{
 		MessageDigest sha256Digest = MessageDigest.getInstance("SHA-256");
-		for (Map.Entry<String, String> keyValue : participants.entrySet())
+		for (Map.Entry<String, String> participant : participants.entrySet())
 		{
-			if (keyValue.getValue() == null)
+			publicKey = participant.getValue();
+
+			if (publicKey == null)
 			{
 				throw new AuthenticationFailureException();
 			}
@@ -471,8 +478,8 @@ public class Client {
 			{
 				try
 				{
-					sha256Digest.update(keyValue.getKey().getBytes("UTF-8"));
-					sha256Digest.update(keyValue.getValue().getBytes("UTF-8"));
+					sha256Digest.update(participant.getKey().getBytes("UTF-8"));
+					sha256Digest.update(publicKey.getBytes("UTF-8"));
 				}
 				catch (UnsupportedEncodingException e)
 				{
@@ -480,25 +487,33 @@ public class Client {
 				}
 			}
 		}
+
 		verifyHash(Base64.encodeBytes(sha256Digest.digest()));
 	}
 
 	private void sendOrReceiveRootKey() throws NotConnectedException, InterruptedException
 	{
-		if (participants.firstKey().equals(configFile.get("username")))
+		if (participants.firstKey().equals(getUsername()))
 		{
 			// I am the first user. Generate a root key and send to the others
 			rootKey = new AESCrypto();
 			for (Map.Entry<String, PrivateChat> privateChat : privateChats.entrySet())
 			{
-				privateChat.getValue().sendMessage(rootKey.getSecret());
+				AESCrypto crypto = cryptoes.get(privateChat.getKey());
+				privateChat.getValue().sendMessage(crypto.encrypt(rootKey.getSecret()));
 			}
 		}
 		else
 		{
+			AESCrypto crypto = cryptoes.get(participants.firstKey());
 			PrivateChat chatWithFirstParticipant = privateChats.firstEntry().getValue();
-			rootKey = new AESCrypto(chatWithFirstParticipant.nextMessage());
+			rootKey = new AESCrypto(crypto.decrypt(chatWithFirstParticipant.nextMessage()));
 		}
+	}
+
+	private String getUsername()
+	{
+		return roomName + "/" + configFile.get("username");
 	}
 
 	private void verifyRootKey() throws NoSuchAlgorithmException, UnsupportedEncodingException, InterruptedException, AuthenticationFailureException
@@ -560,7 +575,7 @@ public class Client {
 		synchronized (LOCK)
 		{
 			participants.put(anotherUser, publicKey);
-			if (participants.size() == muc.getOccupantsCount())
+			if (participants.size() == muc.getOccupantsCount() - 1)
 			{
 				LOCK.notify();
 			}
@@ -577,7 +592,7 @@ public class Client {
 		synchronized (LOCK)
 		{
 			++verificationCount;
-			if (verificationCount == muc.getOccupantsCount())
+			if (verificationCount == muc.getOccupantsCount() - 1)
 			{
 				LOCK.notify();
 			}
