@@ -25,7 +25,8 @@ public class Main {
 	private static final String PRIVATE = "$private";
 	
 	public static void main(String[] args) throws SmackException, IOException, XMPPException {
-		Client client = new Client("smack2.properties");
+		String filename = args[1];
+		Client client = new Client(filename);
 		Scanner in = new Scanner(System.in);
 		String input;
 
