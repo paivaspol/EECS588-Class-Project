@@ -4,7 +4,8 @@ import java.io.IOException;
 import java.util.*;
 
 import edu.michigan.eecs588.Messenger.MessageReceived;
-import edu.michigan.eecs588.Messenger.Messenger;
+import edu.michigan.eecs588.Messenger.MessengerInterface;
+
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
@@ -28,7 +29,7 @@ public class Main {
 		Scanner in = new Scanner(System.in);
 		String input;
 
-		Messenger m;
+		MessengerInterface m;
 		while (true) {
 			client.getPrinter().print();
 			input = in.nextLine();

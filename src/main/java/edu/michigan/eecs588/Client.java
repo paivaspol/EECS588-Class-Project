@@ -3,6 +3,8 @@ package edu.michigan.eecs588;
 import edu.michigan.eecs588.Messenger.MMessage;
 import edu.michigan.eecs588.Messenger.MessageReceived;
 import edu.michigan.eecs588.Messenger.Messenger;
+import edu.michigan.eecs588.Messenger.MessengerInterface;
+import edu.michigan.eecs588.Messenger.SimpleMessenger;
 import edu.michigan.eecs588.authentication.ActiveAuthThread;
 import edu.michigan.eecs588.authentication.AuthenticationFailureException;
 import edu.michigan.eecs588.authentication.GroupVerificationThread;
@@ -62,7 +64,7 @@ public class Client {
 	private boolean setupWillStart;
 	private MessageListener simpleMessageListener;
 
-	private Messenger messenger;
+	private MessengerInterface messenger;
 	
 	/* For testing purposes. These are randomly generated key pair. */
 	private String privateKey = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC4eYiG8Atjnu6ePk3vZn7yZR7U" +
@@ -129,7 +131,7 @@ public class Client {
 		this.simpleMessageListener = new MessageListener() {
 			@Override
 			public void processMessage(Message message) {
-				System.out.println(message.getBody());
+				printer.println(message.getBody());
 			}
 		}; 
 	}
@@ -215,7 +217,7 @@ public class Client {
 		return muc;
 	}
 
-	public Messenger getMessenger() {
+	public MessengerInterface getMessenger() {
 		return messenger;
 	}
     
@@ -283,7 +285,7 @@ public class Client {
 		muc.sendConfigurationForm(submitForm);
 		this.muc = muc;
 		this.roomName = muc.getRoom();
-		this.messenger = this.createMessenger(publicKeys, sign);
+		this.messenger = createSimpleMessenger();
     }
 
     /**
@@ -304,7 +306,7 @@ public class Client {
 					muc.join(configFile.get("username"));
 					Client.this.muc = muc;
 					Client.this.roomName = muc.getRoom();
-					Client.this.muc.addMessageListener(Client.this.simpleMessageListener);
+					Client.this.messenger = createSimpleMessenger();
 					printer.println("Joined: " + muc.getRoom());
 					setupWillStart = true;
 				}
@@ -334,8 +336,12 @@ public class Client {
     private String generateUsername(String user) {
     	return user + "@" + configFile.get("serviceName");
     }
+    
+    private SimpleMessenger createSimpleMessenger() {
+    	return new SimpleMessenger(this.muc, this.simpleMessageListener);
+    }
 
-	private Messenger createMessenger(Map<String, Verifier> publicKeys, Signer sign) {
+	private MessengerInterface createMessenger(Map<String, Verifier> publicKeys, Signer sign) {
 		printer.println("Hello! " + this.muc);
 		return new Messenger(this.getMultiUserChat(), new MessageReceived() {
 			@Override
