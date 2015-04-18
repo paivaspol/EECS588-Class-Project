@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * Created by sysofwan on 4/12/15.
  */
-public class Messenger {
+public class Messenger implements MessengerInterface {
 
     private class SentMsgInfo {
         String message;
@@ -87,7 +87,11 @@ public class Messenger {
         });
     }
 
-    public void sendMessage(String message) throws SmackException.NotConnectedException {
+    /* (non-Javadoc)
+	 * @see edu.michigan.eecs588.Messenger.MessengerInterface#sendMessage(java.lang.String)
+	 */
+    @Override
+	public void sendMessage(String message) throws SmackException.NotConnectedException {
         if (message != null && !message.equals("")) {
             String sign = userSigner.sign(message);
             String signedMessage = sign + "," + message;
