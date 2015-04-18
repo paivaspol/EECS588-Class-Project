@@ -71,9 +71,9 @@ public class Messenger implements MessengerInterface {
                 }
 
                 String dcryptMsgStr = decrypto.decrypt(encryptedMessage);
-//                System.out.println(dcryptMsgStr);
+                //System.out.println(dcryptMsgStr);
                 String sign = getSignature(dcryptMsgStr);
-//                System.out.println("sign: " +  sign);
+                //System.out.println("sign: " +  sign);
                 String messageNoSign = getMessage(dcryptMsgStr);
                 Verifier senderVerf = Messenger.this.publicKeys.get(XmppStringUtils.parseResource(message.getFrom()));
                 if (sign != null && dcryptMsgStr != null && senderVerf != null && messageNoSign != null &&

@@ -16,8 +16,7 @@ public class SimpleMessenger implements MessengerInterface {
 	
 	@Override
 	public void sendMessage(String message) throws NotConnectedException {
-		
-		
+		this.muc.sendMessage(message);
 	}
 	
 

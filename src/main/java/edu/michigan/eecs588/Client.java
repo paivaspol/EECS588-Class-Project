@@ -68,34 +68,6 @@ public class Client {
 
 	/**
 	 * Constructs the client.
-	 * @throws IOException
-	 * @throws XMPPException
-	 * @throws SmackException
-	 */
-	public Client() throws IOException, SmackException, XMPPException {
-		this.configFile = ConfigFileReader.getConfigValues();
-		this.connection = createConnectionAndLogin(configFile);
-		addInvitationListener(connection);
-		
-		longTermKeyPair = new ECMQVKeyPair();
-		keyPair = new RSAKeyPair();
-		participants = new TreeMap<>();
-		privateChats = new TreeMap<>();
-		LOCK = new Object();
-		isInitiator = false;
-		printer = new Printer(this);
-		setupWillStart = false;
-		
-		this.simpleMessageListener = new MessageListener() {
-			@Override
-			public void processMessage(Message message) {
-				printer.println(message.getBody());
-			}
-		}; 
-	}
-
-	/**
-	 * Constructs the client.
 	 *
 	 * @param configFilename the config file name
 	 * @throws IOException
@@ -121,7 +93,31 @@ public class Client {
 		this.simpleMessageListener = new MessageListener() {
 			@Override
 			public void processMessage(Message message) {
-				printer.println(message.getBody());
+				if (message.getBody().equals("$setup"))
+				{
+					if (!isInitiator)
+					{
+						(new Thread(new Runnable()
+						{
+							@Override
+							public void run()
+							{
+								try
+								{
+									authenticate();
+								}
+								catch (AuthenticationFailureException e)
+								{
+									printer.println("Authentication failed.");
+								}
+							}
+						})).start();
+					}
+				}
+				else
+				{
+					printer.println(message.getBody());
+				}
 			}
 		}; 
 	}
@@ -297,32 +293,8 @@ public class Client {
 			@Override
 			public void onMessageReceived(MMessage message) {
 				String messageBody = message.getMessage();
-				if (messageBody.equals("$setup"))
-				{
-					if (!isInitiator)
-					{
-						(new Thread(new Runnable()
-						{
-							@Override
-							public void run()
-							{
-								try
-								{
-									authenticate();
-								}
-								catch (AuthenticationFailureException e)
-								{
-									printer.println("Authentication failed.");
-								}
-							}
-						})).start();
-					}
-				}
-				else
-				{
-					System.out.println(message.getUsername() + ": " + messageBody);
-					printer.print();
-				}
+				System.out.println(message.getUsername() + ": " + messageBody);
+				printer.print();
 			}
 		}, publicKeys, sign, rootKey.getSecret());
 	}
@@ -389,12 +361,15 @@ public class Client {
 			{
 				privateChat.getValue().close();
 			}
+			privateChats.clear();
 
 			printer.println("Authentication done.");
 			this.muc.removeMessageListener(this.simpleMessageListener);
 			for (Map.Entry<String, String> participant : participants.entrySet())
 			{
-				publicKeys.put(participant.getKey(), new Verifier(participant.getValue()));
+				int lastIndexOfSlash = participant.getKey().lastIndexOf('/');
+				String username = participant.getKey().substring(lastIndexOfSlash + 1);
+				publicKeys.put(username, new Verifier(participant.getValue()));
 			}
 			this.messenger = this.createMessenger(publicKeys, new Signer(keyPair.getPrivateKey()));
 			if (!isInitiator)

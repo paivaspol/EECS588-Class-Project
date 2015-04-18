@@ -30,7 +30,6 @@ public class ActiveAuthThread implements Runnable
         this.anotherUser = chat.getParticipant();
         this.chat = chat;
         this.keyPair = keyPair;
-        client.getPrinter().println(keyPair);
     }
 
     @Override
