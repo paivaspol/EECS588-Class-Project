@@ -8,11 +8,13 @@ import edu.michigan.eecs588.authentication.AuthenticationFailureException;
 import edu.michigan.eecs588.authentication.GroupVerificationThread;
 import edu.michigan.eecs588.authentication.PrivateChat;
 import edu.michigan.eecs588.encryption.*;
+
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
+import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
@@ -58,10 +60,11 @@ public class Client {
 	private boolean isInitiator;
 	private Printer printer;
 	private boolean setupWillStart;
+	private MessageListener simpleMessageListener;
 
 	private Messenger messenger;
 	
-	/* For testing purposes. */
+	/* For testing purposes. These are randomly generated key pair. */
 	private String privateKey = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC4eYiG8Atjnu6ePk3vZn7yZR7U" +
 								"Om9kY5hQtQYutLFYJoeZ5ivffhE+N/9xm0fp9xZ8FquRFaZGVcau3mjstyQL456oOgQ2BJ0h7lO3" +
 								"JN0khMd/LtXw8rrn/Im5EV+qoQpNWNv9W8f6+yTm7BanSwosMhiWF3ie/UKjqt+jngYKYFnhwqGD" +
@@ -122,6 +125,13 @@ public class Client {
 		isInitiator = false;
 		printer = new Printer(this);
 		setupWillStart = false;
+		
+		this.simpleMessageListener = new MessageListener() {
+			@Override
+			public void processMessage(Message message) {
+				System.out.println(message.getBody());
+			}
+		}; 
 	}
 
 	/**
@@ -155,6 +165,13 @@ public class Client {
 		isInitiator = false;
 		printer = new Printer(this);
 		setupWillStart = false;
+		
+		this.simpleMessageListener = new MessageListener() {
+			@Override
+			public void processMessage(Message message) {
+				printer.println(message.getBody());
+			}
+		}; 
 	}
 
 	public String getRoomName()
@@ -287,7 +304,7 @@ public class Client {
 					muc.join(configFile.get("username"));
 					Client.this.muc = muc;
 					Client.this.roomName = muc.getRoom();
-					Client.this.messenger = Client.this.createMessenger(publicKeys, sign);
+					Client.this.muc.addMessageListener(Client.this.simpleMessageListener);
 					printer.println("Joined: " + muc.getRoom());
 					setupWillStart = true;
 				}
@@ -418,6 +435,8 @@ public class Client {
 			}
 
 			printer.println("Authentication done.");
+			this.muc.removeMessageListener(this.simpleMessageListener);
+			this.messenger = Client.this.createMessenger(publicKeys, sign);
 			if (!isInitiator)
 			{
 				printer.print();
