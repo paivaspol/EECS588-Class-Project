@@ -4,7 +4,8 @@ import org.jivesoftware.smack.SmackException;
 
 public interface MessengerInterface {
 
-	public abstract void sendMessage(String message)
+	void sendMessage(String message)
 			throws SmackException.NotConnectedException;
 
+	long lastMessageSentTime();
 }

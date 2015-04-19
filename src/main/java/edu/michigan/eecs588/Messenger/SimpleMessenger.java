@@ -6,7 +6,7 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 
 public class SimpleMessenger implements MessengerInterface {
-
+	private long lastSent;
 	private MultiUserChat muc;
 	
 	public SimpleMessenger(MultiUserChat muc, MessageListener messageListener) {
@@ -16,8 +16,15 @@ public class SimpleMessenger implements MessengerInterface {
 	
 	@Override
 	public void sendMessage(String message) throws NotConnectedException {
+		lastSent = System.currentTimeMillis();
 		this.muc.sendMessage(message);
 	}
-	
+
+	@Override
+	public long lastMessageSentTime()
+	{
+		return lastSent;
+	}
+
 
 }

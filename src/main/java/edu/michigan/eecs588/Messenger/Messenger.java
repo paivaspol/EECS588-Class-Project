@@ -17,6 +17,7 @@ import java.util.Map;
  * Created by sysofwan on 4/12/15.
  */
 public class Messenger implements MessengerInterface {
+    private long lastSent;
 
     private class SentMsgInfo {
         String message;
@@ -92,6 +93,7 @@ public class Messenger implements MessengerInterface {
 	 */
     @Override
 	public void sendMessage(String message) throws SmackException.NotConnectedException {
+        lastSent = System.currentTimeMillis();
         if (message != null && !message.equals("")) {
             String sign = userSigner.sign(message);
             String signedMessage = sign + "," + message;
@@ -100,6 +102,12 @@ public class Messenger implements MessengerInterface {
             muc.sendMessage(encrypted);
             rollLocalKey();
         }
+    }
+
+    @Override
+    public long lastMessageSentTime()
+    {
+        return lastSent;
     }
 
     private void rollLocalKey() {

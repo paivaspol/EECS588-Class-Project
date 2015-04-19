@@ -116,6 +116,8 @@ public class Client {
 				}
 				else
 				{
+					System.out.println("Message latency is " + (System.currentTimeMillis() - getMessenger().lastMessageSentTime()));
+					printer.print();
 					printer.println(message.getBody());
 				}
 			}
@@ -292,6 +294,8 @@ public class Client {
 		return new Messenger(this.getMultiUserChat(), new MessageReceived() {
 			@Override
 			public void onMessageReceived(MMessage message) {
+				System.out.println("Message latency is " + (System.currentTimeMillis() - getMessenger().lastMessageSentTime()));
+				printer.print();
 				String messageBody = message.getMessage();
 				System.out.println(message.getUsername() + ": " + messageBody);
 				printer.print();
